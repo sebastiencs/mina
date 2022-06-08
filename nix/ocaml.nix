@@ -301,6 +301,10 @@ let
         src = filtered-src;
         outputs = [ "out" ];
 
+        MINA_COMMIT_DATE =
+         if sourceInfo ? rev then sourceInfo.lastModifiedDate else "<unknown>";
+        MINA_COMMIT_SHA1 = sourceInfo.rev or "dirty";
+
         buildPhase = ''
           dune build --profile=integration_tests src/app/test_executive/test_executive.exe src/app/logproc/logproc.exe -j$NIX_BUILD_CORES
         '';
