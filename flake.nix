@@ -80,7 +80,7 @@
             label = "Upload ${package} to Google Artifact Registry";
             depends_on = [ "packages_x86_64-linux_${package}" ];
             plugins = [{ "thedyrt/skip-checkout#v0.1.1" = null; }];
-            branches = [ "compatible" "develop" ];
+            # branches = [ "compatible" "develop" ];
             key = "push_${package}";
           };
           publishDocs = {
@@ -99,7 +99,7 @@
             '';
             label = "Run ${test} integration test";
             depends_on = [ "push_mina-daemon-docker" ];
-            branches = [ "develop" ];
+            # branches = [ "develop" ];
           };
         in {
           steps = flakeSteps {
