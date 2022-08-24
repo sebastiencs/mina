@@ -66,6 +66,8 @@
       };
       pipeline = with flake-buildkite-pipeline.lib;
         let
+          dockerUrl = package: "us-west2-docker.pkg.dev/o1labs-192920/nix-containers/${package}:$BUILDKITE_BRANCH";
+
           pushToRegistry = package: {
             command = runInEnv self.devShells.x86_64-linux.operations ''
               skopeo \
@@ -73,12 +75,13 @@
               --insecure-policy \
               --dest-registry-token $(gcloud auth application-default print-access-token) \
               docker-archive:${self.packages.x86_64-linux.${package}} \
-              docker://us-west2-docker.pkg.dev/o1labs-192920/nix-containers/${package}:$BUILDKITE_BRANCH
+              docker://${dockerUrl package}
             '';
             label = "Upload ${package} to Google Artifact Registry";
             depends_on = [ "packages_x86_64-linux_${package}" ];
             plugins = [{ "thedyrt/skip-checkout#v0.1.1" = null; }];
             branches = [ "compatible" "develop" ];
+            key = "push_${package}";
           };
           publishDocs = {
             command = runInEnv self.devShells.x86_64-linux.operations ''
@@ -89,6 +92,14 @@
             depends_on = [ "defaultPackage_x86_64-linux" ];
             branches = [ "develop" ];
             plugins = [{ "thedyrt/skip-checkout#v0.1.1" = null; }];
+          };
+          runIntegrationTest = test: {
+            command = runInEnv self.devShells.x86_64-linux.integration_tests ''
+              test_executive cloud ${test} --mina-image ${dockerUrl "mina-daemon-docker"}
+            '';
+            label = "Run ${test} integration test";
+            depends_on = [ "push_mina-daemon-docker" ];
+            branches = [ "develop" ];
           };
         in {
           steps = flakeSteps {
@@ -101,10 +112,7 @@
             (pushToRegistry "mina-docker")
             (pushToRegistry "mina-daemon-docker")
             publishDocs
-            (runInEnv self.devShells.x86_64-linux.integration_tests ''
-              docker load -i=${self.packages.x86_64-linux.mina-daemon-docker}
-              test_executive cloud peers-reliability --mina-image mina-daemon:${self.sourceInfo.rev}
-            '')
+            (runIntegrationTest "peers-reliability")
           ];
         };
     } // utils.lib.eachDefaultSystem (system:
