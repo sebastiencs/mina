@@ -97,7 +97,7 @@
             command = runInEnv self.devShells.x86_64-linux.integration_tests ''
               export GOOGLE_CLOUD_KEYFILE_JSON=$AUTOMATED_VALIDATION_SERVICE_ACCOUNT
               export GCLOUD_API_KEY=$(cat $INTEGRATION_TEST_LOGS_GCLOUD_API_KEY_PATH)
-              source $INTEGREATION_TEST_CREDENTIALS
+              source $INTEGRATION_TEST_CREDENTIALS
               export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
               export KUBE_CONFIG_PATH=$HOME/.kube/config
               gcloud auth activate-service-account --key-file=$AUTOMATED_VALIDATION_SERVICE_ACCOUNT
