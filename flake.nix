@@ -95,6 +95,14 @@
           };
           runIntegrationTest = test: {
             command = runInEnv self.devShells.x86_64-linux.integration_tests ''
+              export GOOGLE_CLOUD_KEYFILE_JSON=$AUTOMATED_VALIDATION_SERVICE_ACCOUNT
+              export GCLOUD_API_KEY=$(cat $INTEGRATION_TEST_LOGS_GCLOUD_API_KEY_PATH)
+              source $INTEGREATION_TEST_CREDENTIALS
+              export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+              export KUBE_CONFIG_PATH=$HOME/.kube/config
+              gcloud auth activate-service-account --key-file=$AUTOMATED_VALIDATION_SERVICE_ACCOUNT
+              gcloud container clusters get-credentials --region us-west1 mina-integration-west1
+              kubectl config use-context gke_o1labs-192920_us-west1_mina-integration-west1
               test_executive cloud ${test} --mina-image ${dockerUrl "mina-daemon-docker"}
             '';
             label = "Run ${test} integration test";
