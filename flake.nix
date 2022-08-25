@@ -101,10 +101,9 @@
               source $INTEGRATION_TEST_CREDENTIALS
               export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
               export KUBE_CONFIG_PATH=$HOME/.kube/config
-              gcloud auth activate-service-account --key-file=$NIX_CI_INTEGRATION_TEST_RUNNER_API_KEY_PATH
-              GOOGLE_APPLICATION_CREDENTIALS=$NIX_CI_INTEGRATION_TEST_RUNNER_API_KEY_PATH gcloud container clusters get-credentials --region us-west1 mina-integration-west1 --project o1labs-192920
+              gcloud auth activate-service-account --key-file=$AUTOMATED_VALIDATION_SERVICE_ACCOUNT automated-validation@o1labs-192920.iam.gserviceaccount.com --project o1labs-192920
+              gcloud container clusters get-credentials --region us-west1 mina-integration-west1
               kubectl config use-context gke_o1labs-192920_us-west1_mina-integration-west1
-              gcloud auth activate-service-account --key-file=$AUTOMATED_VALIDATION_SERVICE_ACCOUNT
               test_executive cloud ${test} --mina-image ${
                 dockerUrl "mina-daemon-docker"
               }
