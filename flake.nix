@@ -66,7 +66,8 @@
       };
       pipeline = with flake-buildkite-pipeline.lib;
         let
-          dockerUrl = package: "us-west2-docker.pkg.dev/o1labs-192920/nix-containers/${package}:$BUILDKITE_BRANCH";
+          dockerUrl = package:
+            "us-west2-docker.pkg.dev/o1labs-192920/nix-containers/${package}:$BUILDKITE_BRANCH";
 
           pushToRegistry = package: {
             command = runInEnv self.devShells.x86_64-linux.operations ''
@@ -100,10 +101,13 @@
               source $INTEGRATION_TEST_CREDENTIALS
               export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
               export KUBE_CONFIG_PATH=$HOME/.kube/config
-              gcloud auth activate-service-account --key-file=$AUTOMATED_VALIDATION_SERVICE_ACCOUNT
+              gcloud auth activate-service-account --key-file=$NIX_CI_INTEGRATION_TEST_RUNNER_API_KEY_PATH
               gcloud container clusters get-credentials --region us-west1 mina-integration-west1
               kubectl config use-context gke_o1labs-192920_us-west1_mina-integration-west1
-              test_executive cloud ${test} --mina-image ${dockerUrl "mina-daemon-docker"}
+              gcloud auth activate-service-account --key-file=$AUTOMATED_VALIDATION_SERVICE_ACCOUNT
+              test_executive cloud ${test} --mina-image ${
+                dockerUrl "mina-daemon-docker"
+              }
             '';
             label = "Run ${test} integration test";
             depends_on = [ "push_mina-daemon-docker" ];
@@ -314,6 +318,7 @@
         devShells.default = self.devShell.${system};
 
         devShells.with-lsp = ocamlPackages.mina-dev.overrideAttrs (oa: {
+          name = "mina-with-lsp";
           nativeBuildInputs = oa.nativeBuildInputs
             ++ [ ocamlPackages.ocaml-lsp-server ];
           shellHook = ''
@@ -326,11 +331,14 @@
           '';
         });
 
-        devShells.operations =
-          pkgs.mkShell { packages = with pkgs; [ skopeo google-cloud-sdk ]; };
+        devShells.operations = pkgs.mkShell {
+          name = "mina-operations";
+          packages = with pkgs; [ skopeo google-cloud-sdk ];
+        };
 
         # TODO: think about rust toolchain in the dev shell
-        devShells.integration_tests = pkgs.mkShell {
+        devShells.integration-tests = pkgs.mkShell {
+          name = "mina-integration-tests";
           buildInputs = [
             self.packages.x86_64-linux.mina_integration_tests
             pkgs.kubectl

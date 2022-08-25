@@ -269,7 +269,7 @@ let
         '';
       });
 
-      mina_build_config = pkgs.stdenv.mkDerivation {
+      mina-build-config = pkgs.stdenv.mkDerivation {
         pname = "mina_build_config";
         version = "dev";
         src = filtered-src;
