@@ -289,8 +289,8 @@
             ocamlPackages.mina.out
             ocamlPackages.mina.mainnet
             ocamlPackages.mina.genesis
-            ocamlPackages.mina_build_config
-            ocamlPackages.mina_daemon_scripts
+            ocamlPackages.mina-build-config
+            ocamlPackages.mina-daemon-scripts
           ];
           config = {
             env = [ "MINA_TIME_OFFSET=0" ];
