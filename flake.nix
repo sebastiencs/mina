@@ -95,7 +95,7 @@
             plugins = [{ "thedyrt/skip-checkout#v0.1.1" = null; }];
           };
           runIntegrationTest = test: {
-            command = runInEnv self.devShells.x86_64-linux.integration_tests ''
+            command = runInEnv self.devShells.x86_64-linux.integration-tests ''
               export GOOGLE_CLOUD_KEYFILE_JSON=$AUTOMATED_VALIDATION_SERVICE_ACCOUNT
               export GCLOUD_API_KEY=$(cat $INTEGRATION_TEST_LOGS_GCLOUD_API_KEY_PATH)
               source $INTEGRATION_TEST_CREDENTIALS
