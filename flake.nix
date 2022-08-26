@@ -67,7 +67,7 @@
       pipeline = with flake-buildkite-pipeline.lib;
         let
           dockerUrl = package:
-            "us-west2-docker.pkg.dev/o1labs-192920/nix-containers/mina:$BUILDKITE_BRANCH";
+            "us-west2-docker.pkg.dev/o1labs-192920/nix-containers/${package}:$BUILDKITE_BRANCH";
 
           pushToRegistry = package: {
             command = runInEnv self.devShells.x86_64-linux.operations ''
@@ -120,7 +120,7 @@
               plugins = [{ "thedyrt/skip-checkout#v0.1.1" = null; }];
             };
           } self ++ [
-            # (pushToRegistry "mina-docker")
+            (pushToRegistry "mina-docker")
             (pushToRegistry "mina-daemon-docker")
             publishDocs
             (runIntegrationTest "peers-reliability")

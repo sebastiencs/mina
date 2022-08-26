@@ -293,6 +293,8 @@ let
           mv dockerfiles/scripts/cron_job_dump_ledger.sh $out/cron_job_dump_ledger.sh
           mv dockerfiles/scripts/daemon-entrypoint.sh $out/entrypoint.sh
           mv dockerfiles/puppeteer-context/* $out/
+          chmod +x $out/*
+          chmod +x $out/entrypoint.d/*
         '';
       };
 
