@@ -278,7 +278,7 @@
           contents = [ ocamlPackages.mina.out ];
         };
         packages.mina-daemon-docker = pkgs.dockerTools.buildImage {
-          name = "mina-daemon";
+          name = "mina";
           contents = [
             pkgs.dumb-init
             pkgs.coreutils
