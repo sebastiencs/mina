@@ -104,7 +104,7 @@
               gcloud auth activate-service-account --key-file=$AUTOMATED_VALIDATION_SERVICE_ACCOUNT automated-validation@o1labs-192920.iam.gserviceaccount.com --project o1labs-192920
               gcloud container clusters get-credentials --region us-west1 mina-integration-west1
               kubectl config use-context gke_o1labs-192920_us-west1_mina-integration-west1
-              chmod -R 770 $(dirname $KUBE_CONFIG_PATH)
+              chmod -R 770 $HOME/.kube
               test_executive cloud ${test} --mina-image ${
                 dockerUrl "mina-daemon-docker"
               }
