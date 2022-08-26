@@ -343,6 +343,7 @@
             pkgs.kubectl
             pkgs.google-cloud-sdk
             pkgs.terraform
+            pkgs.curl
           ];
         };
         packages.impure-shell =
