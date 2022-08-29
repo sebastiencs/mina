@@ -285,6 +285,7 @@
             pkgs.bashInteractive
             pkgs.python3
             pkgs.libp2p_helper
+            pkgs.procps
             ocamlPackages.mina.out
             ocamlPackages.mina.mainnet
             ocamlPackages.mina.genesis
