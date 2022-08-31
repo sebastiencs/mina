@@ -163,8 +163,7 @@ let
             src/app/rosetta/rosetta_testnet_signatures.exe \
             src/app/rosetta/rosetta_mainnet_signatures.exe \
             src/app/generate_keypair/generate_keypair.exe \
-            src/app/runtime_genesis_ledger/runtime_genesis_ledger.exe \
-            src/lib/mina_base/sample_keypairs.json
+            src/app/runtime_genesis_ledger/runtime_genesis_ledger.exe
           dune exec src/app/runtime_genesis_ledger/runtime_genesis_ledger.exe -- --genesis-dir _build/coda_cache_dir
           dune build @doc || true
         '';
