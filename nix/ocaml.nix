@@ -115,6 +115,8 @@ let
         MINA_COMMIT_SHA1 = "__commit_sha1___________________________";
         MINA_BRANCH = "<unknown>";
 
+        DUNE_PROFILE = "devnet";
+
         NIX_LDFLAGS =
           optionalString (pkgs.stdenv.isDarwin && pkgs.stdenv.isAarch64)
           "-F${pkgs.darwin.apple_sdk.frameworks.CoreFoundation}/Library/Frameworks -framework CoreFoundation";
@@ -152,6 +154,7 @@ let
 
         buildPhase = ''
           dune build --display=short \
+            -j$NIX_BUILD_CORES \
             src/app/logproc/logproc.exe \
             src/app/cli/src/mina.exe \
             src/app/cli/src/mina_testnet_signatures.exe \
@@ -161,7 +164,7 @@ let
             src/app/rosetta/rosetta_mainnet_signatures.exe \
             src/app/generate_keypair/generate_keypair.exe \
             src/app/runtime_genesis_ledger/runtime_genesis_ledger.exe \
-            -j$NIX_BUILD_CORES
+            src/lib/mina_base/sample_keypairs.json
           dune exec src/app/runtime_genesis_ledger/runtime_genesis_ledger.exe -- --genesis-dir _build/coda_cache_dir
           dune build @doc || true
         '';
