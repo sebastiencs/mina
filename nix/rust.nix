@@ -77,7 +77,7 @@ in {
       lockFileContents =
         fixupLockFile ../src/lib/crypto/kimchi_bindings/stubs/Cargo.lock;
     };
-    preBuild = "sed -i 's/+bmi2,+adx/-bmi2,-adx/g' lib/crypto/kimchi_bindings/stubs/dune";
+    preBuild = "sed -i 's/+bmi2,+adx/-bmi2,-adx/g' dune";
     # FIXME: tests fail
     doCheck = false;
   };
@@ -153,7 +153,7 @@ in {
 
     # adapted from cargoBuildHook
     buildPhase = ''
-      sed -i 's/+bmi2,+adx/-bmi2,-adx/g' lib/crypto/kimchi_bindings/stubs/dune
+      sed -i 's/+bmi2,+adx/-bmi2,-adx/g' ../stubs/dune
       runHook preBuild
       (
       set -x
