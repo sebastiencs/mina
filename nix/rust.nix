@@ -77,7 +77,7 @@ in {
       lockFileContents =
         fixupLockFile ../src/lib/crypto/kimchi_bindings/stubs/Cargo.lock;
     };
-    preBuild = "bash ${../scripts/zexe-standardize.sh}";
+    preBuild = "sed -i 's/+bmi2,+adx/-bmi2,-adx/g' lib/crypto/kimchi_bindings/stubs/dune";
     # FIXME: tests fail
     doCheck = false;
   };
@@ -153,7 +153,7 @@ in {
 
     # adapted from cargoBuildHook
     buildPhase = ''
-      bash ${../scripts/zexe-standardize.sh}
+      sed -i 's/+bmi2,+adx/-bmi2,-adx/g' lib/crypto/kimchi_bindings/stubs/dune
       runHook preBuild
       (
       set -x
