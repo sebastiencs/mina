@@ -77,7 +77,7 @@ in {
       lockFileContents =
         fixupLockFile ../src/lib/crypto/kimchi_bindings/stubs/Cargo.lock;
     };
-    preBuild = "./scripts/zexe-standardize.sh";
+    preBuild = "${./scripts/zexe-standardize.sh}";
     # FIXME: tests fail
     doCheck = false;
   };
@@ -153,7 +153,7 @@ in {
 
     # adapted from cargoBuildHook
     buildPhase = ''
-      ./scripts/zexe-standardize.sh
+      ${./scripts/zexe-standardize.sh}
       runHook preBuild
       (
       set -x
