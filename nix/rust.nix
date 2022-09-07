@@ -153,7 +153,6 @@ in {
 
     # adapted from cargoBuildHook
     buildPhase = ''
-      sed -i 's/+bmi2,+adx/-bmi2,-adx/g' ../stubs/dune
       runHook preBuild
       (
       set -x
