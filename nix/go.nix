@@ -32,7 +32,7 @@ final: prev: {
     version = "0.1";
     src = ../src/app/libp2p_helper/src;
     runVend = true; # missing some schema files
-    doCheck = false; # TODO: tests hang
+    #doCheck = false; # TODO: tests hang
     vendorSha256 =
       # sanity check, to make sure the fixed output drv doesn't keep working
       # when the inputs change
