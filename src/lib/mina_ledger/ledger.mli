@@ -186,6 +186,13 @@ end
 *)
 val create_new_account_exn : t -> Account_id.t -> Account.t -> unit
 
+val apply_user_command_unchecked :
+     constraint_constants:Genesis_constants.Constraint_constants.t
+  -> txn_global_slot:Mina_numbers.Global_slot.t
+  -> t
+  -> Signed_command.t
+  -> Transaction_applied.Signed_command_applied.t Or_error.t
+
 val apply_user_command :
      constraint_constants:Genesis_constants.Constraint_constants.t
   -> txn_global_slot:Mina_numbers.Global_slot.t

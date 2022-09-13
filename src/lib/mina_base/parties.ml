@@ -1045,7 +1045,7 @@ let%test_unit "wire embedded in graphql" =
   Quickcheck.test ~shrinker:Wire.shrinker Wire.gen ~f:(fun w ->
       [%test_eq: Wire.t] (Wire.of_graphql_repr (Wire.to_graphql_repr w)) w )
 
-let parties (t : t) : _ Call_forest.t =
+let complete_call_forest (t : t) : _ Call_forest.t =
   let p = t.fee_payer in
   let body = Party.Body.of_fee_payer p.body in
   let fee_payer : Party.t =

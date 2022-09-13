@@ -1602,6 +1602,15 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
 
   module M = Parties_logic.Make (Inputs)
 
+  let apply_parties_fee_payer_unchecked (ledger : L.t) (c : Parties.t) : (Inputs.Global_state.t * Inputs.Local_state.t) Or_error.t =
+    let call_forest = Parties.complete_call_forest c in
+    Or_error.try_with (fun () ->
+      M.start ~constraint_constants
+        { call_forest; memo_hash = Signed_command_memo.hash c.memo }
+        { perform }
+        initial_state)
+
+  (*
   let apply_parties_unchecked_aux (type user_acc)
       ~(constraint_constants : Genesis_constants.Constraint_constants.t)
       ~(state_view : Zkapp_precondition.Protocol_state.View.t)
@@ -1743,6 +1752,7 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
         Some (local_state, global_state.fee_excess) )
     |> Result.map ~f:(fun (party_applied, state_res) ->
            (party_applied, Option.value_exn state_res) )
+  *)
 
   let update_timing_when_no_deduction ~txn_global_slot account =
     validate_timing ~txn_amount:Amount.zero ~txn_global_slot ~account

@@ -96,10 +96,8 @@ let public_keys : t -> _ = function
       Coinbase.accounts_accessed cb |> List.map ~f:Account_id.public_key
 
 let accounts_accessed : t -> _ = function
-  | Command (Signed_command cmd) ->
-      Signed_command.accounts_accessed cmd
-  | Command (Parties t) ->
-      Parties.accounts_accessed t
+  | Command cmd ->
+      User_command.accounts_accessed cmd
   | Fee_transfer ft ->
       Fee_transfer.receivers ft
   | Coinbase cb ->

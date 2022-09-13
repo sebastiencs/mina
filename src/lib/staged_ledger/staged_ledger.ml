@@ -11,6 +11,12 @@ open Signature_lib
 module Ledger = Mina_ledger.Ledger
 module Sparse_ledger = Mina_ledger.Sparse_ledger
 
+let or_error_list_fold ls ~init ~f =
+  let open Or_error.Let_syntax in
+  List.fold ls ~init:(return init) ~f:(fun acc_or_error el ->
+      let%bind acc = acc_or_error in
+      f acc el )
+
 let option lab =
   Option.value_map ~default:(Or_error.error_string lab) ~f:(fun x -> Ok x)
 
@@ -506,6 +512,7 @@ module T = struct
         ~f:(fun x -> Ok x)
     else Ok constraint_constants.coinbase_amount
 
+  (*
   (* TODO *)
   let apply_transaction_and_get_statement ~constraint_constants ledger
       (pending_coinbase_stack_state : Stack_state_with_init_stack.t) s
@@ -620,7 +627,90 @@ module T = struct
       ; statement
       }
     , updated_pending_coinbase_stack_state )
+  *)
 
+  (* TODO: put into batch throttle loop *)
+  let apply_single_transaction_phase_1 ~constraint_constants ledger (pending_coinbase_stack_state : Stack_state_with_init_stack.t) txn status (txn_state_view : Zkapp_precondition.Protocol_state.View.t) state_and_body_hash =
+    let open Result.Let_syntax in
+    let previous_hash = Ledger.merkle_root ledger in
+    let txn_global_slot = txn_state_view.global_slot_since_genesis in
+    let ledger_witness =
+      O1trace.sync_thread "create_ledger_witness" (fun () ->
+        Transaction.accounts_accessed txn
+        |> Sparse_ledger.of_ledger_subset_exn ledger)
+    in
+    (* TODO: should push_coinbase change? *)
+    let pending_coinbase_target = push_coinbase pending_coinbase_stack_state.pc.target txn in
+    let new_init_stack = push_coinbase pending_coinbase_stack_state.init_stack txn in
+    let application_state =
+      match txn with
+      | Command (Signed_command t) ->
+          let%map applied = Ledger.apply_user_command_unchecked ~constraint_constants ~txn_global_slot ledger t in
+          `Fully_applied { Ledger.Transaction_applied.previous_hash; varying = Ledger.Transaction_applied.Varying.Command (Signed_command applied)}
+      | Command (Parties t) ->
+          let%map applied = Ledger.apply_parties_fee_payer_unchecked ~constraint_constants ~txn_global_slot ledger t in
+          `Partially_applied applied
+      | Fee_transfer t ->
+          let%map applied = Ledger.apply_fee_transfer ~constraint_constants ~txn_global_slot ledger t in
+          `Fully_applied { Ledger.Transaction_applied.previous_hash; varying = Ledger.Transaction_applied.Varying.Fee_transfer applied}
+      | Coinbase t ->
+          let%map applied = Ledger.apply_coinbase ~constraint_constants ~txn_global_slot ledger t in
+          `Fully_applied { Ledger.Transaction_applied.previous_hash; varying = Ledger.Transaction_applied.Varying.Coinbase applied}
+    in
+    ( { Scan_state.Transaction_pre_witness.phase_1_ledger_witness = ledger_witness
+      ; init_stack = Base pending_coinbase_stack_state.init_stack }
+    , { Stack_state_with_init_stack.pc =
+          { source = pending_coinbase_target; target = pending_coinbase_target }
+      ; init_stack = new_init_stack } )
+
+  let apply_transactions_phase_1 ~constraint_constants ledger current_stack ts current_state_view state_and_body_hash =
+    let current_stack_with_state = push_state current_stack (snd state_and_body_hash) in
+    let%map.Or_error res_rev, pending_coinbase_stack_state =
+      let init_pending_coinbase_stack_state : Stack_state_with_init_stack.t =
+        { pc = { source = current_stack; target = current_stack_with_state }
+        ; init_stack = current_stack
+        }
+      in
+      or_error_list_fold ts ~init:([], init_pending_coinbase_stack_state)
+        ~f:(fun (acc, pending_coinbase_stack_state) t ->
+          if 
+            List.exists (Transaction.public_keys t.With_status.data)
+              ~f:(fun pk -> Option.is_none (Signature_lib.Public_key.decompress pk))
+          then
+            Error (Invalid_public_key pk)
+          else
+            let (pre_stmt, pending_coinbase_stack_state') =
+              apply_single_transaction_phase_1 ~constraint_constants ledger
+                pending_coinbase_stack_state t.With_status.data
+                (Some t.status) current_state_view state_and_body_hash
+            in
+            Ok (pre_stmt :: acc, pending_coinbase_stack_state'))
+    in
+    (List.rev res_rev, pending_coinbase_stack_state.pc.target)
+  
+  let apply_transactions_phase_2 ledger pre_stmt =
+    match pre_stmt.application_state with
+    | `Fully_applied applied ->
+        let phase_2_ledger_witness = Sparse_ledger.of_ledger_root ledger in
+        let stmt =
+          { Transaction_snark.Statement.source =
+            { fee_payment_ledger = pre_stmt.phase_1_ledger_witness
+            ; parties_ledger = pre_stmt.phase_1_ledger_witness
+            ; pending_coinbase_stack = pre_stmt.pending_coinbase_source
+            ; local_state = empty_local_state }
+          ; target =
+            { fee_payment_ledger = phase_2_ledger_witness
+            ; parties_ledger = phase_2_ledger_witness
+            ; pending_coinbase_stack = pre_stmt.pending_coinbase_target
+            ; local_state = empty_local_state }
+          ; fee_excess = TODO
+          ; supply_increase = TODO
+          ; sok_digest = () }
+        in
+        (applied, stmt)
+    | `Partially_applied t -> ()
+
+  (*
   let update_ledger_and_get_statements ~constraint_constants ledger
       current_stack ts current_state_view state_and_body_hash =
     let open Deferred.Result.Let_syntax in
@@ -663,6 +753,7 @@ module T = struct
                raise exn )
     in
     (List.rev res_rev, pending_coinbase_stack_state.pc.target)
+  *)
 
   let check_completed_works ~logger ~verifier scan_state
       (completed_works : Transaction_snark_work.t list) =
