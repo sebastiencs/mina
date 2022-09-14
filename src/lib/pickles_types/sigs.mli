@@ -1,6 +1,14 @@
 (** Type definitions for library Pickles_types *)
 
-(** {1 Serialization to and from JSON} *)
+(** {1 Serialization} *)
+
+(** {2 To and from S-expressions} *)
+module Sexpable = Core_kernel.Sexpable
+
+(** {2 To and from binary format} *)
+module Binable = Core_kernel.Binable
+
+(** {2 Serialization to and from JSON} *)
 
 (** Serialization to and from S-expressions or binary formats are directly
     imported from respectively {!Core_kernel.Sexpable} and {!Core_kernel.Binable} *)
@@ -115,9 +123,9 @@ module Serializable : sig
   module type S1 = sig
     type 'a t
 
-    include Core_kernel.Sexpable.S1 with type 'a t := 'a t
+    include Sexpable.S1 with type 'a t := 'a t
 
-    include Core_kernel.Binable.S1 with type 'a t := 'a t
+    include Binable.S1 with type 'a t := 'a t
 
     include Jsonable.S1 with type 'a t := 'a t
   end
@@ -125,9 +133,9 @@ module Serializable : sig
   module type S2 = sig
     type ('a, 'b) t
 
-    include Core_kernel.Sexpable.S2 with type ('a, 'b) t := ('a, 'b) t
+    include Sexpable.S2 with type ('a, 'b) t := ('a, 'b) t
 
-    include Core_kernel.Binable.S2 with type ('a, 'b) t := ('a, 'b) t
+    include Binable.S2 with type ('a, 'b) t := ('a, 'b) t
 
     include Jsonable.S2 with type ('a, 'b) t := ('a, 'b) t
   end
@@ -135,9 +143,9 @@ module Serializable : sig
   module type S3 = sig
     type ('a, 'b, 'c) t
 
-    include Core_kernel.Sexpable.S3 with type ('a, 'b, 'c) t := ('a, 'b, 'c) t
+    include Sexpable.S3 with type ('a, 'b, 'c) t := ('a, 'b, 'c) t
 
-    include Core_kernel.Binable.S3 with type ('a, 'b, 'c) t := ('a, 'b, 'c) t
+    include Binable.S3 with type ('a, 'b, 'c) t := ('a, 'b, 'c) t
 
     include Jsonable.S3 with type ('a, 'b, 'c) t := ('a, 'b, 'c) t
   end
