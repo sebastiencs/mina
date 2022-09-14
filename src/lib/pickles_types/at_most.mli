@@ -12,11 +12,11 @@ type ('a, 'n) at_most = ('a, 'n) t
 module type S = sig
   type 'a t
 
-  include Sigs.HASH_FOLDABLE with type 'a t := 'a t
+  include Sigs.Hash_foldable.S1 with type 'a t := 'a t
 
-  include Sigs.COMPARABLE with type 'a t := 'a t
+  include Sigs.Comparable.S1 with type 'a t := 'a t
 
-  include Vector.Yojson_intf1 with type 'a t := 'a t
+  include Sigs.Jsonable.S1 with type 'a t := 'a t
 
   include Core_kernel.Sexpable.S1 with type 'a t := 'a t
 end
@@ -28,26 +28,9 @@ module type VERSIONED = sig
     module V1 : sig
       type 'a t = 'a ty
 
-      (* TODO:  bin_* functions are from Core_kernel,Binable *)
-      val version : int
+      include Sigs.VERSIONED
 
-      val bin_shape_t : Bin_prot.Shape.t -> Bin_prot.Shape.t
-
-      val bin_size_t : ('a, 'a t) Bin_prot.Size.sizer1
-
-      val bin_write_t : ('a, 'a t) Bin_prot.Write.writer1
-
-      val bin_read_t : ('a, 'a t) Bin_prot.Read.reader1
-
-      val __bin_read_t__ : ('a, int -> 'a t) Bin_prot.Read.reader1
-
-      val bin_writer_t : ('a, 'a t) Bin_prot.Type_class.S1.writer
-
-      val bin_reader_t : ('a, 'a t) Bin_prot.Type_class.S1.reader
-
-      val bin_t : ('a, 'a t) Bin_prot.Type_class.S1.t
-
-      val __versioned__ : unit
+      include Core_kernel.Binable.S1 with type 'a t := 'a t
 
       include S with type 'a t := 'a t
     end
