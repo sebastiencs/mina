@@ -9,6 +9,7 @@ let genesis_root_identifier ~genesis_state_hash =
   { state_hash = genesis_state_hash }
 
 let with_file ?size filename access_level ~f =
+  Printf.eprintf "PERSISTENT_WITH_FILE %s\n%!" filename ;
   let open Unix in
   let shared, mode =
     match access_level with
@@ -286,8 +287,10 @@ let with_instance_exn t ~f =
   Instance.close instance ; x
 
 let reset_to_genesis_exn t ~precomputed_values =
+  Printf.eprintf "RESET_TO_GENESIS %s\n%!" t.directory ;
   assert (Option.is_none t.instance) ;
   File_system.rmrf t.directory ;
+  (* Core.Unix.mkdir_p t.directory ; *)
   with_instance_exn t ~f:(fun instance ->
       ignore
         ( Ledger_transfer.transfer_accounts

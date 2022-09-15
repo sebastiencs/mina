@@ -50,8 +50,8 @@ module type S = sig
       Dangling_parent_reference of
         Uuid.t * (* Location where null was set*) string
 
-    (** get hash from mask, if present, else from its parent *)
-    val get_hash : t -> Addr.t -> hash option
+    (* (\** get hash from mask, if present, else from its parent *\)
+     * val get_hash : t -> Addr.t -> hash option *)
 
     (** commit all state to the parent, flush state locally *)
     val commit : t -> unit
@@ -65,13 +65,15 @@ module type S = sig
         [detached_signal] for [t] will be resolved. This should only be set to
         [false] when the mask will be reparented.
     *)
-    val unset_parent : ?trigger_signal:bool -> loc:string -> t -> unattached
+    (* val unset_parent : ?trigger_signal:bool -> loc:string -> t -> unattached *)
+
+    (* val get_parent : t -> t *)
 
     (** get mask parent *)
-    val get_parent : t -> parent
+    (* val get_parent : t -> parent *)
 
     (** called when parent sets an account; update local state *)
-    val parent_set_notify : t -> account -> unit
+    (* val parent_set_notify : t -> account -> unit *)
 
     val copy : t -> t
 
@@ -87,6 +89,9 @@ module type S = sig
     end
   end
 
-  (** tell mask about parent *)
   val set_parent : unattached -> parent -> Attached.t
+  (* val set_parent : unattached -> t -> Attached.t *)
+
+  (** tell mask about parent *)
+  (* val set_parent : unattached -> parent -> Attached.t *)
 end
