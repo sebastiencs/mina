@@ -969,11 +969,11 @@ module Make (Inputs : Inputs_intf) :
     Rust.database_set_all_accounts_rooted_at t (Addr.to_string addr) accounts
 
   let set_batch_accounts t list =
-    Printf.eprintf "SET_BATCH_ACCOUNT '%s'\n%!"
-      (Addr.to_string (Addr.of_string "0101011111")) ;
+    (* Printf.eprintf "SET_BATCH_ACCOUNT '%s'\n%!" *)
+    (*   (Addr.to_string (Addr.of_string "0101011111")) ; *)
     let accounts =
       List.map list ~f:(fun (addr, account) ->
-          Printf.eprintf "ADDR HERE %s\n%!" (Addr.to_string addr) ;
+          (* Printf.eprintf "ADDR HERE %s\n%!" (Addr.to_string addr) ; *)
           (Addr.to_string addr, account_to_rust account) )
     in
     Rust.database_set_batch_accounts t accounts
