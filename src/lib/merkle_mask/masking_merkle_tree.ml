@@ -53,7 +53,10 @@ module Make (Inputs : Inputs_intf.S) = struct
   type unattached = t [@@deriving sexp]
 
   let create ~depth () =
-    { uuid = Uuid_unix.create ()
+    let uuid = Uuid_unix.create () in
+    Printf.eprintf "MY_LOG.MERKLE_MASK.MASKING.CREATE %s\n%!"
+      (Uuid.to_string uuid) ;
+    { uuid
     ; parent = Error __LOC__
     ; detached_parent_signal = Async.Ivar.create ()
     ; account_tbl = Location_binable.Table.create ()
@@ -136,6 +139,8 @@ module Make (Inputs : Inputs_intf.S) = struct
       Addr.Table.find t.hash_tbl address
 
     let self_set_hash t address hash =
+      (* Printf.eprintf "MY_LOG.MERKLE_MASK.MASKING.SET_HASH %s addr=%s\n%!" *)
+      (*   (Uuid.to_string t.uuid) (Addr.to_string address) ; *)
       assert_is_attached t ;
       Addr.Table.set t.hash_tbl ~key:address ~data:hash
 
@@ -163,6 +168,8 @@ module Make (Inputs : Inputs_intf.S) = struct
       Location_binable.Table.data t.account_tbl
 
     let self_set_account t location account =
+      (* Printf.eprintf "MY_LOG.MERKLE_MASK.MASKING.SET_ACCOUNT %s\n%!" *)
+      (*   (Uuid.to_string t.uuid) ; *)
       assert_is_attached t ;
       Location_binable.Table.set t.account_tbl ~key:location ~data:account ;
       self_set_location t (Account.identifier account) location
@@ -261,6 +268,8 @@ module Make (Inputs : Inputs_intf.S) = struct
 
     (* use mask Merkle root, if it exists, else get from parent *)
     let merkle_root t =
+      (* Printf.eprintf "MY_LOG.MERKLE_MASK.MASKING.MERKLE_ROOT uuid=%s\n%!" *)
+      (*   (Uuid.to_string t.uuid) ; *)
       assert_is_attached t ;
       match self_find_hash t (Addr.root ()) with
       | Some hash ->
@@ -302,6 +311,7 @@ module Make (Inputs : Inputs_intf.S) = struct
     (* a write writes only to the mask, parent is not involved need to update
        both account and hash pieces of the mask *)
     let set t location account =
+      (* Printf.eprintf "MY_LOG.MERKLE_MASK.MASKING.SET\n%!" ; *)
       assert_is_attached t ;
       self_set_account t location account ;
       (* Update token info. *)
@@ -318,6 +328,7 @@ module Make (Inputs : Inputs_intf.S) = struct
           account_hash
       in
       List.iter addresses_and_hashes ~f:(fun (addr, hash) ->
+          (* Printf.eprintf "SELF_SET_HASH %s\n%!" (Addr.to_string addr) ; *)
           self_set_hash t addr hash )
 
     (* if the mask's parent sets an account, we can prune an entry in the mask
@@ -344,6 +355,7 @@ module Make (Inputs : Inputs_intf.S) = struct
           Some hash
       | None -> (
           try
+            Printf.eprintf "inner hash here\n%!" ;
             let hash = Base.get_inner_hash_at_addr_exn (get_parent t) addr in
             Some hash
           with _ -> None )
@@ -369,11 +381,15 @@ module Make (Inputs : Inputs_intf.S) = struct
     (* transfer state from mask to parent; flush local state *)
     let commit t =
       assert_is_attached t ;
+      (* Printf.eprintf "AAA\n%!" ; *)
       let old_root_hash = merkle_root t in
+      (* Printf.eprintf "BBB\n%!" ; *)
       let account_data = Location_binable.Table.to_alist t.account_tbl in
+      (* Printf.eprintf "NACCOUNTS=%d\n%!" (List.length account_data) ; *)
       Base.set_batch (get_parent t) account_data ;
       Location_binable.Table.clear t.account_tbl ;
       Addr.Table.clear t.hash_tbl ;
+      (* Printf.eprintf "CCC\n%!" ; *)
       Debug_assert.debug_assert (fun () ->
           [%test_result: Hash.t]
             ~message:
@@ -468,6 +484,7 @@ module Make (Inputs : Inputs_intf.S) = struct
     end)
 
     let set_batch_accounts t addresses_and_accounts =
+      (* Printf.eprintf "MY_LOG.MERKLE_MASK.MASKING.SET_BATCH_ACCOUNTS\n%!" ; *)
       assert_is_attached t ;
       set_batch_accounts t addresses_and_accounts
 
@@ -613,6 +630,7 @@ module Make (Inputs : Inputs_intf.S) = struct
       get t (Location.Account addr) |> Option.value_exn
 
     let set_at_index_exn t index account =
+      (* Printf.eprintf "MY_LOG.MERKLE_MASK.MASKING.SET_AT_INDEX\n%!" ; *)
       assert_is_attached t ;
       let addr = Addr.of_int_exn ~ledger_depth:t.depth index in
       set t (Location.Account addr) account
@@ -738,6 +756,7 @@ module Make (Inputs : Inputs_intf.S) = struct
 
     (* NB: updates the mutable current_location field in t *)
     let get_or_create_account t account_id account =
+      (* Printf.eprintf "MY_LOG.MERKLE_MASK.MASKING.GET_OR_CREATE_ACCOUNT\n%!" ; *)
       assert_is_attached t ;
       match self_find_location t account_id with
       | None -> (

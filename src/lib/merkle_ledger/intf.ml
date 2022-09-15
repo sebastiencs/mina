@@ -46,9 +46,10 @@ module type Account_id = sig
   [%%versioned:
   module Stable : sig
     module V2 : sig
-      type t [@@deriving sexp]
+      type t [@@deriving sexp, bin_io]
     end
   end]
+  (* [@@deriving bin_io_unversioned, sexp, equal, compare, hash, yojson] *)
 
   val public_key : t -> key
 
@@ -92,7 +93,8 @@ module type Account = sig
 end
 
 module type Hash = sig
-  type t [@@deriving bin_io, compare, equal, sexp, yojson]
+  type t = Snark_params.Tick.Field.t
+  [@@deriving bin_io, compare, equal, sexp, yojson]
 
   val to_base58_check : t -> string
 

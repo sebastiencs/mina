@@ -15,6 +15,8 @@ include Hashable.S_binable with type t := t
 
 val of_byte_string : string -> t
 
+val of_string : string -> t
+
 val of_directions : Direction.t list -> t
 
 val root : unit -> t
