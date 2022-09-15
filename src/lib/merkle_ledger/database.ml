@@ -12,6 +12,8 @@ module type Inputs_intf = sig
   module Storage_locations : Intf.Storage_locations
 end
 
+module Rust = Mina_tree.Rust
+
 module Make (Inputs : Inputs_intf) :
   Database_intf.S
     with module Location = Inputs.Location
@@ -27,12 +29,12 @@ module Make (Inputs : Inputs_intf) :
   (* The max depth of a merkle tree can never be greater than 253. *)
   open Inputs
 
-  module Db_error = struct
-    type t = Account_location_not_found | Out_of_leaves | Malformed_database
-    [@@deriving sexp]
+  (* module Db_error = struct *)
+  (*   type t = Account_location_not_found | Out_of_leaves | Malformed_database *)
+  (*   [@@deriving sexp] *)
 
-    exception Db_exception of t
-  end
+  (*   exception Db_exception of t *)
+  (* end *)
 
   module Path = Merkle_path.Make (Hash)
   module Addr = Location.Addr
@@ -51,65 +53,160 @@ module Make (Inputs : Inputs_intf) :
     let sexp_of_t (_ : t) = Sexp.List []
 
     let t_of_sexp (_ : Sexp.t) : t = Async.Ivar.create ()
+
+    let _use_unused t =
+      let _a = sexp_of_t t in
+      let _b = t_of_sexp (Sexp.List []) in
+      ()
   end
 
-  type t =
-    { uuid : Uuid.Stable.V1.t
-    ; kvdb : Kvdb.t [@sexp.opaque]
-    ; depth : int
-    ; directory : string
-    ; detached_parent_signal : Detached_parent_signal.t
-    }
-  [@@deriving sexp]
+  type t = Mina_tree.database
 
-  let get_uuid t = t.uuid
+  let sexp_of_t (_ : t) = Sexp.List []
 
-  let get_directory t = Some t.directory
+  let t_of_sexp (_ : Sexp.t) : t = failwith "t_of_sexp: not implemented"
 
-  let depth t = t.depth
+  let _use_unused t =
+    let _a = sexp_of_t t in
+    let _b = t_of_sexp (Sexp.List []) in
+    ()
+
+  let hash_from_rust hash =
+    hash |> Bigstring.of_bytes |> Hash.bin_read_t ~pos_ref:(ref 0)
+
+  let path_from_rust path =
+    match path with
+    | `Left hash ->
+        `Left (hash_from_rust hash)
+    | `Right hash ->
+        `Right (hash_from_rust hash)
+
+  let location_to_rust location =
+    let s =
+      match location with
+      | Location.Generic bigs ->
+          "Generic " ^ Bigstring.to_string bigs
+      | Location.Account addr ->
+          "Account " ^ Addr.to_string addr
+      | Location.Hash addr ->
+          "Hash " ^ Addr.to_string addr
+    in
+    Printf.eprintf "%s\n%!" s ;
+    Location.to_path_exn location |> Addr.to_string
+
+  let account_location_from_rust addr = Location.Account (Addr.of_string addr)
+
+  let account_from_rust account =
+    Account.bin_read_t (Bigstring.of_bytes account) ~pos_ref:(ref 0)
+
+  let account_to_rust account =
+    let buf = Bigstring.create (Account.bin_size_t account) in
+    ignore (Account.bin_write_t buf ~pos:0 account : int) ;
+    Bigstring.to_bytes buf
+
+  let account_id_from_rust account_id =
+    Account_id.Stable.Latest.bin_read_t
+      (Bigstring.of_bytes account_id)
+      ~pos_ref:(ref 0)
+
+  let account_id_to_rust account_id =
+    let buf =
+      Bigstring.create (Account_id.Stable.Latest.bin_size_t account_id)
+    in
+    ignore (Account_id.Stable.Latest.bin_write_t buf ~pos:0 account_id : int) ;
+    Bigstring.to_bytes buf
+
+  let token_id_from_rust token_id =
+    Token_id.Stable.Latest.bin_read_t
+      (Bigstring.of_bytes token_id)
+      ~pos_ref:(ref 0)
+
+  let token_id_to_rust token_id =
+    let buf = Bigstring.create (Token_id.Stable.Latest.bin_size_t token_id) in
+    ignore (Token_id.Stable.Latest.bin_write_t buf ~pos:0 token_id : int) ;
+    Bigstring.to_bytes buf
+
+  let pubkey_to_rust pubkey =
+    let buf = Bigstring.create (Key.Stable.Latest.bin_size_t pubkey) in
+    ignore (Key.Stable.Latest.bin_write_t buf ~pos:0 pubkey : int) ;
+    Bigstring.to_bytes buf
+
+  (* type t = *)
+  (*   { uuid : Uuid.Stable.V1.t *)
+  (*   ; kvdb : Kvdb.t [@sexp.opaque] *)
+  (*   ; depth : int *)
+  (*   ; directory : string *)
+  (*   ; detached_parent_signal : Detached_parent_signal.t *)
+  (*   } *)
+  (* [@@deriving sexp] *)
+
+  (* let get_uuid t = t.uuid *)
+  let get_uuid t = Rust.database_get_uuid t |> Uuid.of_string
+
+  let get_directory t = Rust.database_get_directory t
+
+  (* let get_directory _t = None *)
+  (* TODO *)
+  (* let get_directory t = Some t.directory *)
+
+  let depth t = Rust.database_depth t
 
   let create ?directory_name ~depth () =
-    assert (depth < 0xfe) ;
-    let uuid = Uuid_unix.create () in
-    let directory =
-      match directory_name with
-      | None ->
-          (* Create in the autogen path, where we know we have write
-             permissions.
-          *)
-          Cache_dir.autogen_path ^/ Uuid.to_string uuid
-      | Some name ->
-          name
-    in
-    Unix.mkdir_p directory ;
-    let kvdb = Kvdb.create directory in
-    { uuid
-    ; kvdb
-    ; depth
-    ; directory
-    ; detached_parent_signal = Async.Ivar.create ()
-    }
+    Printf.eprintf "MY_LOG.MERKLE_LEDGER.DATABASE.CREATE\n%!" ;
+    let rust_db = Rust.database_create depth directory_name in
+    rust_db
+  (* assert (depth < 0xfe) ; *)
+  (* let uuid = Uuid_unix.create () in *)
+  (* let directory = *)
+  (*   match directory_name with *)
+  (*   | None -> *)
+  (*       (\* Create in the autogen path, where we know we have write *)
+  (*          permissions. *)
+  (*       *\) *)
+  (*       Cache_dir.autogen_path ^/ Uuid.to_string uuid *)
+  (*   | Some name -> *)
+  (*       name *)
+  (* in *)
+  (* Unix.mkdir_p directory ; *)
+  (* let kvdb = Kvdb.create directory in *)
+  (* { uuid *)
+  (* ; kvdb *)
+  (* ; depth *)
+  (* ; directory *)
+  (* ; detached_parent_signal = Async.Ivar.create () *)
+  (* } *)
 
   let create_checkpoint t ~directory_name () =
-    let uuid = Uuid_unix.create () in
-    let kvdb = Kvdb.create_checkpoint t.kvdb directory_name in
-    { uuid
-    ; kvdb
-    ; depth = t.depth
-    ; directory = directory_name
-    ; detached_parent_signal = Async.Ivar.create ()
-    }
+    Printf.eprintf "MY_LOG.MERKLE_LEDGER.DATABASE.CREATE_CHECKPOINT\n%!" ;
+    let _ = directory_name in
+    Rust.database_create_checkpoint t directory_name
+  (* let uuid = Uuid_unix.create () in *)
+  (* let kvdb = Kvdb.create_checkpoint t.kvdb directory_name in *)
+  (* { uuid *)
+  (* ; kvdb *)
+  (* ; depth = t.depth *)
+  (* ; directory = directory_name *)
+  (* ; detached_parent_signal = Async.Ivar.create () *)
+  (* } *)
 
   let make_checkpoint t ~directory_name =
-    Kvdb.make_checkpoint t.kvdb directory_name
+    Printf.eprintf "MY_LOG.MERKLE_LEDGER.DATABASE.MAKE_CHECKPOINT\n%!" ;
+    let _ = directory_name in
+    Rust.database_make_checkpoint t directory_name
+  (* Kvdb.make_checkpoint t.kvdb directory_name *)
 
-  let close { kvdb; uuid = _; depth = _; directory = _; detached_parent_signal }
-      =
-    Kvdb.close kvdb ;
-    Async.Ivar.fill_if_empty detached_parent_signal ()
+  let close t = Rust.database_close t
 
-  let detached_signal { detached_parent_signal; _ } =
-    Async.Ivar.read detached_parent_signal
+  (* let close { kvdb; uuid = _; depth = _; directory = _; detached_parent_signal } *)
+  (*     = *)
+  (*   Kvdb.close kvdb ; *)
+  (*   Async.Ivar.fill_if_empty detached_parent_signal () *)
+
+  let detached_signal _t = failwith "detached_signal: not implemented"
+  (* Rust.database_close t *)
+
+  (* TODO *)
+  (* Async.Ivar.read detached_parent_signal *)
 
   let with_ledger ~depth ~f =
     let t = create ~depth () in
@@ -118,458 +215,538 @@ module Make (Inputs : Inputs_intf) :
       close t ; result
     with exn -> close t ; raise exn
 
-  let empty_hash =
-    Empty_hashes.extensible_cache (module Hash) ~init_hash:Hash.empty_account
+  (* let empty_hash = *)
+  (*   Empty_hashes.extensible_cache (module Hash) ~init_hash:Hash.empty_account *)
 
-  let get_raw { kvdb; depth; _ } location =
-    Kvdb.get kvdb ~key:(Location.serialize ~ledger_depth:depth location)
+  (* let get_raw { kvdb; depth; _ } location = *)
+  (*   Kvdb.get kvdb ~key:(Location.serialize ~ledger_depth:depth location) *)
 
-  let get_raw_batch { kvdb; depth; _ } locations =
-    let keys = List.map locations ~f:(Location.serialize ~ledger_depth:depth) in
-    Kvdb.get_batch kvdb ~keys
+  (* let get_raw_batch { kvdb; depth; _ } locations = *)
+  (*   let keys = List.map locations ~f:(Location.serialize ~ledger_depth:depth) in *)
+  (*   Kvdb.get_batch kvdb ~keys *)
 
-  let get_bin mdb location bin_read =
-    get_raw mdb location |> Option.map ~f:(fun v -> bin_read v ~pos_ref:(ref 0))
+  (* let get_bin mdb location bin_read = *)
+  (*   get_raw mdb location |> Option.map ~f:(fun v -> bin_read v ~pos_ref:(ref 0)) *)
 
-  let get_bin_batch mdb locations bin_read =
-    get_raw_batch mdb locations
-    |> List.map ~f:(Option.map ~f:(fun v -> bin_read v ~pos_ref:(ref 0)))
+  (* let get_bin_batch mdb locations bin_read = *)
+  (*   get_raw_batch mdb locations *)
+  (*   |> List.map ~f:(Option.map ~f:(fun v -> bin_read v ~pos_ref:(ref 0))) *)
 
-  let delete_raw { kvdb; depth; _ } location =
-    Kvdb.remove kvdb ~key:(Location.serialize ~ledger_depth:depth location)
+  (* let delete_raw { kvdb; depth; _ } location = *)
+  (*   Kvdb.remove kvdb ~key:(Location.serialize ~ledger_depth:depth location) *)
 
   let get mdb location =
-    assert (Location.is_account location) ;
-    get_bin mdb location Account.bin_read_t
+    Printf.eprintf "MY_LOG.MERKLE_LEDGER.DATABASE.GET\n%!" ;
+    let addr = location_to_rust location in
+    (* let addr = Location.to_path_exn location |> Addr.to_string in *)
+    Rust.database_get mdb addr |> Option.map ~f:account_from_rust
+
+  (* assert (Location.is_account location) ; *)
+  (* get_bin mdb location Account.bin_read_t *)
 
   let get_batch mdb locations =
-    assert (List.for_all locations ~f:Location.is_account) ;
-    List.zip_exn locations (get_bin_batch mdb locations Account.bin_read_t)
+    Printf.eprintf "MY_LOG.MERKLE_LEDGER.DATABASE.GET_BATCH %d\n%!"
+      (List.length locations) ;
+    let addrs = List.map locations ~f:location_to_rust in
+    Rust.database_get_batch mdb addrs
+    |> List.map ~f:(fun (addr, account) ->
+           ( account_location_from_rust addr
+           , Option.map account ~f:account_from_rust ) )
 
-  let get_hash mdb location =
-    assert (Location.is_hash location) ;
-    match get_bin mdb location Hash.bin_read_t with
-    | Some hash ->
-        hash
-    | None ->
-        empty_hash (Location.height ~ledger_depth:mdb.depth location)
+  (* assert (List.for_all locations ~f:Location.is_account) ; *)
+  (* List.zip_exn locations (get_bin_batch mdb locations Account.bin_read_t) *)
 
-  let account_list_bin { kvdb; _ } account_bin_read : Account.t list =
-    let all_keys_values = Kvdb.to_alist kvdb in
-    (* see comment at top of location.ml about encoding of locations *)
-    let account_location_prefix =
-      Location.Prefix.account |> Unsigned.UInt8.to_int
-    in
-    (* just want list of locations and accounts, ignoring other locations *)
-    let locations_accounts_bin =
-      List.filter all_keys_values ~f:(fun (loc, _v) ->
-          let ch = Bigstring.get_uint8 loc ~pos:0 in
-          Int.equal ch account_location_prefix )
-    in
-    List.map locations_accounts_bin ~f:(fun (_location_bin, account_bin) ->
-        account_bin_read account_bin ~pos_ref:(ref 0) )
+  (* let get_hash mdb location = *)
+  (*   assert (Location.is_hash location) ; *)
+  (*   match get_bin mdb location Hash.bin_read_t with *)
+  (*   | Some hash -> *)
+  (*       hash *)
+  (*   | None -> *)
+  (*       empty_hash (Location.height ~ledger_depth:mdb.depth location) *)
 
-  let to_list mdb = account_list_bin mdb Account.bin_read_t
+  (* let account_list_bin { kvdb; _ } account_bin_read : Account.t list = *)
+  (*   let all_keys_values = Kvdb.to_alist kvdb in *)
+  (*   (\* see comment at top of location.ml about encoding of locations *\) *)
+  (*   let account_location_prefix = *)
+  (*     Location.Prefix.account |> Unsigned.UInt8.to_int *)
+  (*   in *)
+  (*   (\* just want list of locations and accounts, ignoring other locations *\) *)
+  (*   let locations_accounts_bin = *)
+  (*     List.filter all_keys_values ~f:(fun (loc, _v) -> *)
+  (*         let ch = Bigstring.get_uint8 loc ~pos:0 in *)
+  (*         Int.equal ch account_location_prefix ) *)
+  (*   in *)
+  (*   List.map locations_accounts_bin ~f:(fun (_location_bin, account_bin) -> *)
+  (*       account_bin_read account_bin ~pos_ref:(ref 0) ) *)
+
+  let to_list mdb = Rust.database_get_list mdb |> List.map ~f:account_from_rust
+
+  (* account_list_bin mdb Account.bin_read_t *)
 
   let accounts mdb =
-    to_list mdb |> List.map ~f:Account.identifier |> Account_id.Set.of_list
+    Rust.database_get_list mdb
+    |> List.map ~f:account_id_from_rust
+    |> Account_id.Set.of_list
 
-  let set_raw { kvdb; depth; _ } location bin =
-    Kvdb.set kvdb
-      ~key:(Location.serialize ~ledger_depth:depth location)
-      ~data:bin
+  (* to_list mdb |> List.map ~f:Account.identifier |> Account_id.Set.of_list *)
 
-  let set_raw_batch { kvdb; depth; _ } locations_bins =
-    let serialize_location (loc, bin) =
-      (Location.serialize ~ledger_depth:depth loc, bin)
-    in
-    let serialized = List.map locations_bins ~f:serialize_location in
-    Kvdb.set_batch kvdb ~key_data_pairs:serialized
+  (* let set_raw { kvdb; depth; _ } location bin = *)
+  (*   Kvdb.set kvdb *)
+  (*     ~key:(Location.serialize ~ledger_depth:depth location) *)
+  (*     ~data:bin *)
 
-  let set_bin mdb location bin_size bin_write v =
-    let buf = Bigstring.create (bin_size v) in
-    ignore (bin_write buf ~pos:0 v : int) ;
-    set_raw mdb location buf
+  (* let set_raw_batch { kvdb; depth; _ } locations_bins = *)
+  (*   let serialize_location (loc, bin) = *)
+  (*     (Location.serialize ~ledger_depth:depth loc, bin) *)
+  (*   in *)
+  (*   let serialized = List.map locations_bins ~f:serialize_location in *)
+  (*   Kvdb.set_batch kvdb ~key_data_pairs:serialized *)
 
-  let set_bin_batch mdb bin_size bin_write locations_vs =
-    let create_buf (loc, v) =
-      let buf = Bigstring.create (bin_size v) in
-      ignore (bin_write buf ~pos:0 v : int) ;
-      (loc, buf)
-    in
-    let locs_bufs = List.map locations_vs ~f:create_buf in
-    set_raw_batch ~remove_keys:[] mdb locs_bufs
+  (* let set_bin mdb location bin_size bin_write v = *)
+  (*   let buf = Bigstring.create (bin_size v) in *)
+  (*   ignore (bin_write buf ~pos:0 v : int) ; *)
+  (*   set_raw mdb location buf *)
+
+  (* let set_bin_batch mdb bin_size bin_write locations_vs = *)
+  (*   let create_buf (loc, v) = *)
+  (*     let buf = Bigstring.create (bin_size v) in *)
+  (*     ignore (bin_write buf ~pos:0 v : int) ; *)
+  (*     (loc, buf) *)
+  (*   in *)
+  (*   let locs_bufs = List.map locations_vs ~f:create_buf in *)
+  (*   set_raw_batch ~remove_keys:[] mdb locs_bufs *)
 
   let get_inner_hash_at_addr_exn mdb address =
-    assert (Addr.depth address <= mdb.depth) ;
-    get_hash mdb (Location.Hash address)
+    (* assert (Addr.depth address <= mdb.depth) ; *)
+    let hash =
+      Rust.database_get_inner_hash_at_addr mdb (Addr.to_string address)
+      |> hash_from_rust
+    in
+    Printf.eprintf "GET_INNER_HASH=%s\n%!"
+      (Snark_params.Tick.Field.to_string hash) ;
+    hash
+  (* |> Bigstring.of_bytes *)
+  (* |> Hash.bin_read_t ~pos_ref:(ref 0) *)
+
+  (* get_hash mdb (Location.Hash address) *)
 
   let set_inner_hash_at_addr_exn mdb address hash =
-    assert (Addr.depth address <= mdb.depth) ;
-    set_bin mdb (Location.Hash address) Hash.bin_size_t Hash.bin_write_t hash
+    let buf = Bigstring.create (Hash.bin_size_t hash) in
+    ignore (Hash.bin_write_t buf ~pos:0 hash : int) ;
+    Rust.database_set_inner_hash_at_addr mdb (Addr.to_string address)
+      (Bigstring.to_bytes buf)
+
+  (* assert (Addr.depth address <= mdb.depth) ; *)
+  (* set_bin mdb (Location.Hash address) Hash.bin_size_t Hash.bin_write_t hash *)
 
   let make_space_for _t _tot = ()
 
-  let get_generic mdb location =
-    assert (Location.is_generic location) ;
-    get_raw mdb location
+  (* let get_generic mdb location = *)
+  (*   assert (Location.is_generic location) ; *)
+  (*   get_raw mdb location *)
 
-  let get_generic_batch mdb locations =
-    assert (List.for_all locations ~f:Location.is_generic) ;
-    get_raw_batch mdb locations
+  (* let get_generic_batch mdb locations = *)
+  (*   assert (List.for_all locations ~f:Location.is_generic) ; *)
+  (*   get_raw_batch mdb locations *)
 
-  module Account_location = struct
-    (** encodes a key, token_id pair as a location used as a database key, so
-        we can find the account location associated with that key.
-    *)
-    let build_location account_id =
-      Location.build_generic
-        (Bigstring.of_string
-           ( "$"
-           ^ Format.sprintf
-               !"%{sexp: Key.t}!%{sexp: Token_id.t}"
-               (Account_id.public_key account_id)
-               (Account_id.token_id account_id) ) )
+  (* module Account_location = struct *)
+  (*   (\** encodes a key, token_id pair as a location used as a database key, so *)
+  (*       we can find the account location associated with that key. *)
+  (*   *\) *)
+  (*   let build_location account_id = *)
+  (*     Location.build_generic *)
+  (*       (Bigstring.of_string *)
+  (*          ( "$" *)
+  (*          ^ Format.sprintf *)
+  (*              !"%{sexp: Key.t}!%{sexp: Token_id.t}" *)
+  (*              (Account_id.public_key account_id) *)
+  (*              (Account_id.token_id account_id) ) ) *)
 
-    let serialize_kv ~ledger_depth (aid, location) =
-      ( Location.serialize ~ledger_depth @@ build_location aid
-      , Location.serialize ~ledger_depth location )
+  (*   let serialize_kv ~ledger_depth (aid, location) = *)
+  (*     ( Location.serialize ~ledger_depth @@ build_location aid *)
+  (*     , Location.serialize ~ledger_depth location ) *)
 
-    let get mdb key =
-      match get_generic mdb (build_location key) with
-      | None ->
-          Error Db_error.Account_location_not_found
-      | Some location_bin ->
-          Location.parse ~ledger_depth:mdb.depth location_bin
-          |> Result.map_error ~f:(fun () -> Db_error.Malformed_database)
+  (*   let get mdb key = *)
+  (*     match get_generic mdb (build_location key) with *)
+  (*     | None -> *)
+  (*         Error Db_error.Account_location_not_found *)
+  (*     | Some location_bin -> *)
+  (*         Location.parse ~ledger_depth:mdb.depth location_bin *)
+  (*         |> Result.map_error ~f:(fun () -> Db_error.Malformed_database) *)
 
-    let get_batch mdb keys =
-      let parse_location bin =
-        match Location.parse ~ledger_depth:mdb.depth bin with
-        | Ok loc ->
-            Some loc
-        | Error () ->
-            None
-      in
-      List.map keys ~f:build_location
-      |> get_generic_batch mdb
-      |> List.map ~f:(Option.bind ~f:parse_location)
+  (*   let get_batch mdb keys = *)
+  (*     let parse_location bin = *)
+  (*       match Location.parse ~ledger_depth:mdb.depth bin with *)
+  (*       | Ok loc -> *)
+  (*           Some loc *)
+  (*       | Error () -> *)
+  (*           None *)
+  (*     in *)
+  (*     List.map keys ~f:build_location *)
+  (*     |> get_generic_batch mdb *)
+  (*     |> List.map ~f:(Option.bind ~f:parse_location) *)
 
-    let delete mdb key = delete_raw mdb (build_location key)
+  (*   let delete mdb key = delete_raw mdb (build_location key) *)
 
-    let set mdb key location =
-      set_raw mdb (build_location key)
-        (Location.serialize ~ledger_depth:mdb.depth location)
+  (*   let set mdb key location = *)
+  (*     set_raw mdb (build_location key) *)
+  (*       (Location.serialize ~ledger_depth:mdb.depth location) *)
 
-    let set_batch_create ~ledger_depth keys_to_locations =
-      List.map ~f:(serialize_kv ~ledger_depth) keys_to_locations
+  (*   let set_batch_create ~ledger_depth keys_to_locations = *)
+  (*     List.map ~f:(serialize_kv ~ledger_depth) keys_to_locations *)
 
-    let _set_batch mdb keys_to_locations =
-      Kvdb.set_batch mdb.kvdb
-        ~key_data_pairs:
-          (set_batch_create ~ledger_depth:mdb.depth keys_to_locations)
+  (*   let _set_batch mdb keys_to_locations = *)
+  (*     Kvdb.set_batch mdb.kvdb *)
+  (*       ~key_data_pairs: *)
+  (*         (set_batch_create ~ledger_depth:mdb.depth keys_to_locations) *)
 
-    let last_location_key () =
-      Location.build_generic (Bigstring.of_string "last_account_location")
+  (*   let last_location_key () = *)
+  (*     Location.build_generic (Bigstring.of_string "last_account_location") *)
 
-    let serialize_last_account_kv ~ledger_depth (location, last_account_location)
-        =
-      ( Location.serialize ~ledger_depth location
-      , Location.serialize ~ledger_depth last_account_location )
+  (*   let serialize_last_account_kv ~ledger_depth (location, last_account_location) *)
+  (*       = *)
+  (*     ( Location.serialize ~ledger_depth location *)
+  (*     , Location.serialize ~ledger_depth last_account_location ) *)
 
-    let increment_last_account_location mdb =
-      let location = last_location_key () in
-      let ledger_depth = mdb.depth in
-      match get_generic mdb location with
-      | None ->
-          let first_location =
-            Location.Account
-              ( Addr.of_directions
-              @@ List.init mdb.depth ~f:(fun _ -> Direction.Left) )
-          in
-          set_raw mdb location (Location.serialize ~ledger_depth first_location) ;
-          Result.return first_location
-      | Some prev_location -> (
-          match Location.parse ~ledger_depth:mdb.depth prev_location with
-          | Error () ->
-              Error Db_error.Malformed_database
-          | Ok prev_account_location ->
-              Location.next prev_account_location
-              |> Result.of_option ~error:Db_error.Out_of_leaves
-              |> Result.map ~f:(fun next_account_location ->
-                     set_raw mdb location
-                       (Location.serialize ~ledger_depth next_account_location) ;
-                     next_account_location ) )
+  (*   let increment_last_account_location mdb = *)
+  (*     let location = last_location_key () in *)
+  (*     let ledger_depth = mdb.depth in *)
+  (*     match get_generic mdb location with *)
+  (*     | None -> *)
+  (*         let first_location = *)
+  (*           Location.Account *)
+  (*             ( Addr.of_directions *)
+  (*             @@ List.init mdb.depth ~f:(fun _ -> Direction.Left) ) *)
+  (*         in *)
+  (*         set_raw mdb location (Location.serialize ~ledger_depth first_location) ; *)
+  (*         Result.return first_location *)
+  (*     | Some prev_location -> ( *)
+  (*         match Location.parse ~ledger_depth:mdb.depth prev_location with *)
+  (*         | Error () -> *)
+  (*             Error Db_error.Malformed_database *)
+  (*         | Ok prev_account_location -> *)
+  (*             Location.next prev_account_location *)
+  (*             |> Result.of_option ~error:Db_error.Out_of_leaves *)
+  (*             |> Result.map ~f:(fun next_account_location -> *)
+  (*                    set_raw mdb location *)
+  (*                      (Location.serialize ~ledger_depth next_account_location) ; *)
+  (*                    next_account_location ) ) *)
 
-    let allocate mdb key =
-      let location_result = increment_last_account_location mdb in
-      Result.map location_result ~f:(fun location ->
-          set mdb key location ; location )
+  (*   let allocate mdb key = *)
+  (*     let location_result = increment_last_account_location mdb in *)
+  (*     Result.map location_result ~f:(fun location -> *)
+  (*         set mdb key location ; location ) *)
 
-    let last_location_address mdb =
-      match
-        last_location_key () |> get_raw mdb |> Result.of_option ~error:()
-        |> Result.bind ~f:(Location.parse ~ledger_depth:mdb.depth)
-      with
-      | Error () ->
-          None
-      | Ok parsed_location ->
-          Some (Location.to_path_exn parsed_location)
+  (*   let last_location_address mdb = *)
+  (*     match *)
+  (*       last_location_key () |> get_raw mdb |> Result.of_option ~error:() *)
+  (*       |> Result.bind ~f:(Location.parse ~ledger_depth:mdb.depth) *)
+  (*     with *)
+  (*     | Error () -> *)
+  (*         None *)
+  (*     | Ok parsed_location -> *)
+  (*         Some (Location.to_path_exn parsed_location) *)
 
-    let last_location mdb =
-      match
-        last_location_key () |> get_raw mdb |> Result.of_option ~error:()
-        |> Result.bind ~f:(Location.parse ~ledger_depth:mdb.depth)
-      with
-      | Error () ->
-          None
-      | Ok parsed_location ->
-          Some parsed_location
-  end
+  (*   let last_location mdb = *)
+  (*     match *)
+  (*       last_location_key () |> get_raw mdb |> Result.of_option ~error:() *)
+  (*       |> Result.bind ~f:(Location.parse ~ledger_depth:mdb.depth) *)
+  (*     with *)
+  (*     | Error () -> *)
+  (*         None *)
+  (*     | Ok parsed_location -> *)
+  (*         Some parsed_location *)
+  (* end *)
 
   let get_at_index_exn mdb index =
-    let addr = Addr.of_int_exn ~ledger_depth:mdb.depth index in
-    get mdb (Location.Account addr) |> Option.value_exn
+    Rust.database_get_at_index mdb index |> account_from_rust
+  (* let addr = Addr.of_int_exn ~ledger_depth:mdb.depth index in *)
+  (* get mdb (Location.Account addr) |> Option.value_exn *)
 
-  let all_accounts (t : t) =
-    match Account_location.last_location_address t with
-    | None ->
-        Sequence.empty
-    | Some last_addr ->
-        Sequence.range ~stop:`inclusive 0 (Addr.to_int last_addr)
-        |> Sequence.map ~f:(fun i -> get_at_index_exn t i)
+  (* let all_accounts (t : t) = *)
+  (*   match Account_location.last_location_address t with *)
+  (*   | None -> *)
+  (*       Sequence.empty *)
+  (*   | Some last_addr -> *)
+  (*       Sequence.range ~stop:`inclusive 0 (Addr.to_int last_addr) *)
+  (*       |> Sequence.map ~f:(fun i -> get_at_index_exn t i) *)
 
   let iteri (t : t) ~(f : int -> Account.t -> unit) =
-    Sequence.iteri (all_accounts t) ~f
+    (* TODO *)
+    let _f = f in
+    let f _x _y = () in
+    Rust.database_iter t f
+  (* Sequence.iteri (all_accounts t) ~f *)
 
   (** The tokens associated with each public key.
 
       These are represented as a [Token_id.Set.t], which is represented by an
       ordered list.
   *)
-  module Tokens = struct
-    module Owner = struct
-      (* Map token IDs to the owning account *)
+  (* module Tokens = struct *)
+  (*   module Owner = struct *)
+  (*     (\* Map token IDs to the owning account *\) *)
 
-      let build_location token_id =
-        Location.build_generic
-          (Bigstring.of_string
-             (Format.sprintf !"$tid!%{sexp: Token_id.t}" token_id) )
+  (*     let build_location token_id = *)
+  (*       Location.build_generic *)
+  (*         (Bigstring.of_string *)
+  (*            (Format.sprintf !"$tid!%{sexp: Token_id.t}" token_id) ) *)
 
-      let serialize_kv ~ledger_depth ((tid : Token_id.t), (aid : Account_id.t))
-          =
-        let aid_buf =
-          Bin_prot.Common.create_buf (Account_id.Stable.Latest.bin_size_t aid)
-        in
-        ignore (Account_id.Stable.Latest.bin_write_t aid_buf ~pos:0 aid : int) ;
-        (Location.serialize ~ledger_depth (build_location tid), aid_buf)
+  (*     let serialize_kv ~ledger_depth ((tid : Token_id.t), (aid : Account_id.t)) *)
+  (*         = *)
+  (*       let aid_buf = *)
+  (*         Bin_prot.Common.create_buf (Account_id.Stable.Latest.bin_size_t aid) *)
+  (*       in *)
+  (*       ignore (Account_id.Stable.Latest.bin_write_t aid_buf ~pos:0 aid : int) ; *)
+  (*       (Location.serialize ~ledger_depth (build_location tid), aid_buf) *)
 
-      let get (mdb : t) (token_id : Token_id.t) : Account_id.t option =
-        get_bin mdb (build_location token_id)
-          Account_id.Stable.Latest.bin_read_t
+  (*     let get (mdb : t) (token_id : Token_id.t) : Account_id.t option = *)
+  (*       get_bin mdb (build_location token_id) *)
+  (*         Account_id.Stable.Latest.bin_read_t *)
 
-      let set (mdb : t) (token_id : Token_id.t) (account_id : Account_id.t) :
-          unit =
-        set_bin mdb (build_location token_id)
-          Account_id.Stable.Latest.bin_size_t
-          Account_id.Stable.Latest.bin_write_t account_id
+  (*     let set (mdb : t) (token_id : Token_id.t) (account_id : Account_id.t) : *)
+  (*         unit = *)
+  (*       set_bin mdb (build_location token_id) *)
+  (*         Account_id.Stable.Latest.bin_size_t *)
+  (*         Account_id.Stable.Latest.bin_write_t account_id *)
 
-      let remove (mdb : t) (token_id : Token_id.t) : unit =
-        delete_raw mdb (build_location token_id)
+  (*     let remove (mdb : t) (token_id : Token_id.t) : unit = *)
+  (*       delete_raw mdb (build_location token_id) *)
 
-      let all_owners (t : t) : (Token_id.t * Account_id.t) Sequence.t =
-        let deduped_tokens =
-          (* First get the sequence of unique tokens *)
-          Sequence.folding_map (all_accounts t) ~init:Token_id.Set.empty
-            ~f:(fun (seen : Token_id.Set.t) (a : Account.t) ->
-              let token = Account.token a in
-              let already_seen = Token_id.Set.mem seen token in
-              (Set.add seen token, (already_seen, token)) )
-          |> Sequence.filter_map ~f:(fun (already_seen, token) ->
-                 if already_seen then None else Some token )
-        in
-        Sequence.filter_map deduped_tokens ~f:(fun token ->
-            Option.map (get t token) ~f:(fun owner -> (token, owner)) )
+  (*     let all_owners (t : t) : (Token_id.t * Account_id.t) Sequence.t = *)
+  (*       let deduped_tokens = *)
+  (*         (\* First get the sequence of unique tokens *\) *)
+  (*         Sequence.folding_map (all_accounts t) ~init:Token_id.Set.empty *)
+  (*           ~f:(fun (seen : Token_id.Set.t) (a : Account.t) -> *)
+  (*             let token = Account.token a in *)
+  (*             let already_seen = Token_id.Set.mem seen token in *)
+  (*             (Set.add seen token, (already_seen, token)) ) *)
+  (*         |> Sequence.filter_map ~f:(fun (already_seen, token) -> *)
+  (*                if already_seen then None else Some token ) *)
+  (*       in *)
+  (*       Sequence.filter_map deduped_tokens ~f:(fun token -> *)
+  (*           Option.map (get t token) ~f:(fun owner -> (token, owner)) ) *)
 
-      let foldi (type a) (t : t) ~(init : a)
-          ~(f : key:Token_id.t -> data:Account_id.t -> a -> a) : a =
-        Sequence.fold (all_owners t) ~init ~f:(fun acc (key, data) ->
-            f ~key ~data acc )
+  (*     let foldi (type a) (t : t) ~(init : a) *)
+  (*         ~(f : key:Token_id.t -> data:Account_id.t -> a -> a) : a = *)
+  (*       Sequence.fold (all_owners t) ~init ~f:(fun acc (key, data) -> *)
+  (*           f ~key ~data acc ) *)
 
-      let _iteri t ~f = foldi t ~init:() ~f:(fun ~key ~data () -> f ~key ~data)
-    end
+  (*     let _iteri t ~f = foldi t ~init:() ~f:(fun ~key ~data () -> f ~key ~data) *)
+  (*   end *)
 
-    let build_location pk =
-      Location.build_generic
-        (Bigstring.of_string (Format.sprintf !"$tids!%{sexp: Key.t}" pk))
+  (*   let build_location pk = *)
+  (*     Location.build_generic *)
+  (*       (Bigstring.of_string (Format.sprintf !"$tids!%{sexp: Key.t}" pk)) *)
 
-    let serialize_kv ~ledger_depth (pk, tids) =
-      let tokens_buf =
-        Bin_prot.Common.create_buf (Token_id.Set.bin_size_t tids)
-      in
-      ignore (Token_id.Set.bin_write_t tokens_buf ~pos:0 tids : int) ;
-      (Location.serialize ~ledger_depth (build_location pk), tokens_buf)
+  (*   let serialize_kv ~ledger_depth (pk, tids) = *)
+  (*     let tokens_buf = *)
+  (*       Bin_prot.Common.create_buf (Token_id.Set.bin_size_t tids) *)
+  (*     in *)
+  (*     ignore (Token_id.Set.bin_write_t tokens_buf ~pos:0 tids : int) ; *)
+  (*     (Location.serialize ~ledger_depth (build_location pk), tokens_buf) *)
 
-    let get_opt mdb pk = get_bin mdb (build_location pk) Token_id.Set.bin_read_t
+  (*   let get_opt mdb pk = get_bin mdb (build_location pk) Token_id.Set.bin_read_t *)
 
-    let get mdb pk = Option.value ~default:Token_id.Set.empty (get_opt mdb pk)
+  (*   let get mdb pk = Option.value ~default:Token_id.Set.empty (get_opt mdb pk) *)
 
-    let set mdb pk tids =
-      set_bin mdb (build_location pk) Token_id.Set.bin_size_t
-        Token_id.Set.bin_write_t tids
+  (*   let set mdb pk tids = *)
+  (*     set_bin mdb (build_location pk) Token_id.Set.bin_size_t *)
+  (*       Token_id.Set.bin_write_t tids *)
 
-    let delete mdb pk = delete_raw mdb (build_location pk)
+  (*   let delete mdb pk = delete_raw mdb (build_location pk) *)
 
-    let change_opt mdb pk ~f =
-      let old = get_opt mdb pk in
-      match (old, f old) with
-      | _, Some tids ->
-          set mdb pk tids
-      | Some _, None ->
-          delete mdb pk
-      | None, None ->
-          ()
+  (*   let change_opt mdb pk ~f = *)
+  (*     let old = get_opt mdb pk in *)
+  (*     match (old, f old) with *)
+  (*     | _, Some tids -> *)
+  (*         set mdb pk tids *)
+  (*     | Some _, None -> *)
+  (*         delete mdb pk *)
+  (*     | None, None -> *)
+  (*         () *)
 
-    let to_opt s = if Set.is_empty s then None else Some s
+  (*   let to_opt s = if Set.is_empty s then None else Some s *)
 
-    let _update_opt mdb pk ~f = change_opt mdb pk ~f:(fun x -> to_opt (f x))
+  (*   let _update_opt mdb pk ~f = change_opt mdb pk ~f:(fun x -> to_opt (f x)) *)
 
-    let update mdb pk ~f =
-      change_opt mdb pk ~f:(fun x ->
-          to_opt @@ f (Option.value ~default:Token_id.Set.empty x) )
+  (*   let update mdb pk ~f = *)
+  (*     change_opt mdb pk ~f:(fun x -> *)
+  (*         to_opt @@ f (Option.value ~default:Token_id.Set.empty x) ) *)
 
-    let add mdb pk tid = update mdb pk ~f:(fun tids -> Set.add tids tid)
+  (*   let add mdb pk tid = update mdb pk ~f:(fun tids -> Set.add tids tid) *)
 
-    let _add_several mdb pk new_tids =
-      update mdb pk ~f:(fun tids ->
-          Set.union tids (Token_id.Set.of_list new_tids) )
+  (*   let _add_several mdb pk new_tids = *)
+  (*     update mdb pk ~f:(fun tids -> *)
+  (*         Set.union tids (Token_id.Set.of_list new_tids) ) *)
 
-    let add_account (mdb : t) (aid : Account_id.t) : unit =
-      let token = Account_id.token_id aid in
-      let key = Account_id.public_key aid in
-      add mdb key token ;
-      (* TODO: The owner DB will store a lot of these unnecessarily since
-         most accounts are not going to be managers. *)
-      Owner.set mdb (Account_id.derive_token_id ~owner:aid) aid
+  (*   let add_account (mdb : t) (aid : Account_id.t) : unit = *)
+  (*     let token = Account_id.token_id aid in *)
+  (*     let key = Account_id.public_key aid in *)
+  (*     add mdb key token ; *)
+  (*     (\* TODO: The owner DB will store a lot of these unnecessarily since *)
+  (*        most accounts are not going to be managers. *\) *)
+  (*     Owner.set mdb (Account_id.derive_token_id ~owner:aid) aid *)
 
-    let remove mdb pk tid = update mdb pk ~f:(fun tids -> Set.remove tids tid)
+  (*   let remove mdb pk tid = update mdb pk ~f:(fun tids -> Set.remove tids tid) *)
 
-    let _remove_several mdb pk rem_tids =
-      update mdb pk ~f:(fun tids ->
-          Set.diff tids (Token_id.Set.of_list rem_tids) )
+  (*   let _remove_several mdb pk rem_tids = *)
+  (*     update mdb pk ~f:(fun tids -> *)
+  (*         Set.diff tids (Token_id.Set.of_list rem_tids) ) *)
 
-    let remove_account (mdb : t) (aid : Account_id.t) : unit =
-      let token = Account_id.token_id aid in
-      let key = Account_id.public_key aid in
-      remove mdb key token ;
-      Owner.remove mdb (Account_id.derive_token_id ~owner:aid)
+  (*   let remove_account (mdb : t) (aid : Account_id.t) : unit = *)
+  (*     let token = Account_id.token_id aid in *)
+  (*     let key = Account_id.public_key aid in *)
+  (*     remove mdb key token ; *)
+  (*     Owner.remove mdb (Account_id.derive_token_id ~owner:aid) *)
 
-    (** Generate a batch of database changes to add the given tokens. *)
-    let add_batch_create mdb pks_to_tokens =
-      let pks_to_all_tokens =
-        Map.filter_mapi pks_to_tokens ~f:(fun ~key:pk ~data:tokens_to_add ->
-            to_opt (Set.union (get mdb pk) tokens_to_add) )
-      in
-      Map.to_alist pks_to_all_tokens
-      |> List.map ~f:(serialize_kv ~ledger_depth:mdb.depth)
+  (*   (\** Generate a batch of database changes to add the given tokens. *\) *)
+  (*   let add_batch_create mdb pks_to_tokens = *)
+  (*     let pks_to_all_tokens = *)
+  (*       Map.filter_mapi pks_to_tokens ~f:(fun ~key:pk ~data:tokens_to_add -> *)
+  (*           to_opt (Set.union (get mdb pk) tokens_to_add) ) *)
+  (*     in *)
+  (*     Map.to_alist pks_to_all_tokens *)
+  (*     |> List.map ~f:(serialize_kv ~ledger_depth:mdb.depth) *)
 
-    let _add_batch mdb pks_to_tokens =
-      Kvdb.set_batch mdb.kvdb
-        ~key_data_pairs:(add_batch_create mdb pks_to_tokens)
-  end
+  (*   let _add_batch mdb pks_to_tokens = *)
+  (*     Kvdb.set_batch mdb.kvdb *)
+  (*       ~key_data_pairs:(add_batch_create mdb pks_to_tokens) *)
+  (* end *)
 
-  let location_of_account t key =
-    match Account_location.get t key with
-    | Error _ ->
-        None
-    | Ok location ->
-        Some location
+  let location_of_account t account_id =
+    Rust.database_location_of_account t (account_id_to_rust account_id)
+    |> Option.map ~f:(fun addr -> Location.Account (Addr.of_string addr))
 
-  let location_of_account_batch t keys =
-    List.zip_exn keys (Account_location.get_batch t keys)
+  (* match Account_location.get t key with *)
+  (* | Error _ -> *)
+  (*     None *)
+  (* | Ok location -> *)
+  (*     Some location *)
 
-  let last_filled t = Account_location.last_location t
+  let location_of_account_batch t account_ids =
+    Printf.eprintf "location_of_account_batch len=%d\n%!"
+      (List.length account_ids) ;
+    let account_ids =
+      List.map account_ids ~f:(fun account_id -> account_id_to_rust account_id)
+    in
+    let list =
+      Rust.database_location_of_account_batch t account_ids
+      |> List.map ~f:(fun (account_id, addr) ->
+             ( account_id_from_rust account_id
+             , Option.map addr ~f:(fun addr ->
+                   Location.Account (Addr.of_string addr) ) ) )
+    in
+    (* Printf.eprintf "LOCATIONS=%s\n%!" *)
+    (*   (String.concat ~sep:"," *)
+    (*      (List.map ~f:(fun (a, b) -> Addr.to_string b) list) ) ; *)
+    list
+
+  (* List.zip_exn keys (Account_location.get_batch t keys) *)
+
+  let last_filled t =
+    Rust.database_last_filled t
+    |> Option.map ~f:(fun last -> Location.Account (Addr.of_string last))
+  (* Account_location.last_location t *)
 
   let token_owners (t : t) : Account_id.Set.t =
-    Tokens.Owner.all_owners t
-    |> Sequence.fold ~init:Account_id.Set.empty ~f:(fun acc (_, owner) ->
-           Set.add acc owner )
+    let list = Rust.database_token_owners t in
+    let list =
+      List.map list ~f:(fun v ->
+          Account_id.Stable.Latest.bin_read_t (Bigstring.of_bytes v)
+            ~pos_ref:(ref 0) )
+    in
+    Account_id.Set.of_list list
 
-  let token_owner = Tokens.Owner.get
+  (* Tokens.Owner.all_owners t *)
+  (* |> Sequence.fold ~init:Account_id.Set.empty ~f:(fun acc (_, owner) -> *)
+  (*        Set.add acc owner ) *)
 
-  let tokens = Tokens.get
+  let token_owner t token_id =
+    Rust.database_token_owner t (token_id_to_rust token_id)
+    |> Option.map ~f:(fun owner -> account_id_from_rust owner)
+  (* let token_owner = Tokens.Owner.get *)
 
-  include Util.Make (struct
-    module Key = Key
-    module Token_id = Token_id
-    module Account_id = Account_id
-    module Balance = Balance
-    module Location = Location
-    module Location_binable = Location_binable
-    module Account = Account
-    module Hash = Hash
+  let tokens t key =
+    Rust.database_tokens t (pubkey_to_rust key)
+    |> List.map ~f:token_id_from_rust
+    |> Token_id.Set.of_list
 
-    module Base = struct
-      type nonrec t = t
+  (* let tokens = Tokens.get *)
 
-      let get = get
+  (* include Util.Make (struct *)
+  (*   module Key = Key *)
+  (*   module Token_id = Token_id *)
+  (*   module Account_id = Account_id *)
+  (*   module Balance = Balance *)
+  (*   module Location = Location *)
+  (*   module Location_binable = Location_binable *)
+  (*   module Account = Account *)
+  (*   module Hash = Hash *)
 
-      let last_filled = last_filled
-    end
+  (*   module Base = struct *)
+  (*     type nonrec t = t *)
 
-    let get_hash = get_hash
+  (*     let get = get *)
 
-    let ledger_depth = depth
+  (*     let last_filled = last_filled *)
+  (*   end *)
 
-    let location_of_account_addr addr = Location.Account addr
+  (*   let get_hash = get_hash *)
 
-    let location_of_hash_addr addr = Location.Hash addr
+  (*   let ledger_depth = depth *)
 
-    let set_raw_hash_batch mdb addresses_and_hashes =
-      set_bin_batch mdb Hash.bin_size_t Hash.bin_write_t addresses_and_hashes
+  (*   let location_of_account_addr addr = Location.Account addr *)
 
-    let set_location_batch ~last_location mdb key_to_location_list =
-      let last_location_key_value =
-        (Account_location.last_location_key (), last_location)
-      in
-      let key_to_location_list = Non_empty_list.to_list key_to_location_list in
-      let account_tokens =
-        List.fold ~init:Key.Map.empty key_to_location_list
-          ~f:(fun map (aid, _) ->
-            Map.update map (Account_id.public_key aid) ~f:(function
-              | Some set ->
-                  Set.add set (Account_id.token_id aid)
-              | None ->
-                  Token_id.Set.singleton (Account_id.token_id aid) ) )
-      in
-      let batched_changes =
-        Account_location.serialize_last_account_kv ~ledger_depth:mdb.depth
-          last_location_key_value
-        :: ( Tokens.add_batch_create mdb account_tokens
-           @ Account_location.set_batch_create ~ledger_depth:mdb.depth
-               key_to_location_list )
-      in
-      Kvdb.set_batch mdb.kvdb ~remove_keys:[] ~key_data_pairs:batched_changes
+  (*   let location_of_hash_addr addr = Location.Hash addr *)
 
-    let set_raw_account_batch mdb
-        (addresses_and_accounts : (location * Account.t) list) =
-      set_bin_batch mdb Account.bin_size_t Account.bin_write_t
-        addresses_and_accounts ;
-      let token_owner_changes =
-        List.filter_map addresses_and_accounts ~f:(fun (_, account) ->
-            if Account.token_owner account then
-              let aid = Account.identifier account in
-              Some
-                (Tokens.Owner.serialize_kv ~ledger_depth:mdb.depth
-                   (Account_id.token_id aid, aid) )
-            else None )
-      in
-      Kvdb.set_batch mdb.kvdb ~remove_keys:[]
-        ~key_data_pairs:token_owner_changes
-  end)
+  (*   let set_raw_hash_batch mdb addresses_and_hashes = *)
+  (*     set_bin_batch mdb Hash.bin_size_t Hash.bin_write_t addresses_and_hashes *)
 
-  let set_hash mdb location new_hash =
-    set_hash_batch mdb [ (location, new_hash) ]
+  (*   let set_location_batch ~last_location mdb key_to_location_list = *)
+  (*     let last_location_key_value = *)
+  (*       (Account_location.last_location_key (), last_location) *)
+  (*     in *)
+  (*     let key_to_location_list = Non_empty_list.to_list key_to_location_list in *)
+  (*     let account_tokens = *)
+  (*       List.fold ~init:Key.Map.empty key_to_location_list *)
+  (*         ~f:(fun map (aid, _) -> *)
+  (*           Map.update map (Account_id.public_key aid) ~f:(function *)
+  (*             | Some set -> *)
+  (*                 Set.add set (Account_id.token_id aid) *)
+  (*             | None -> *)
+  (*                 Token_id.Set.singleton (Account_id.token_id aid) ) ) *)
+  (*     in *)
+  (*     let batched_changes = *)
+  (*       Account_location.serialize_last_account_kv ~ledger_depth:mdb.depth *)
+  (*         last_location_key_value *)
+  (*       :: ( Tokens.add_batch_create mdb account_tokens *)
+  (*          @ Account_location.set_batch_create ~ledger_depth:mdb.depth *)
+  (*              key_to_location_list ) *)
+  (*     in *)
+  (*     Kvdb.set_batch mdb.kvdb ~remove_keys:[] ~key_data_pairs:batched_changes *)
+
+  (*   let set_raw_account_batch mdb *)
+  (*       (addresses_and_accounts : (location * Account.t) list) = *)
+  (*     set_bin_batch mdb Account.bin_size_t Account.bin_write_t *)
+  (*       addresses_and_accounts ; *)
+  (*     let token_owner_changes = *)
+  (*       List.filter_map addresses_and_accounts ~f:(fun (_, account) -> *)
+  (*           if Account.token_owner account then *)
+  (*             let aid = Account.identifier account in *)
+  (*             Some *)
+  (*               (Tokens.Owner.serialize_kv ~ledger_depth:mdb.depth *)
+  (*                  (Account_id.token_id aid, aid) ) *)
+  (*           else None ) *)
+  (*     in *)
+  (*     Kvdb.set_batch mdb.kvdb ~remove_keys:[] *)
+  (*       ~key_data_pairs:token_owner_changes *)
+  (* end) *)
+
+  (* let set_hash _mdb _location _new_hash = failwith "set_hash: not implemented" *)
+
+  (* TODO *)
+  (* set_hash_batch mdb [ (location, new_hash) ] *)
 
   module For_tests = struct
     let gen_account_location ~ledger_depth =
@@ -585,136 +762,234 @@ module Make (Inputs : Inputs_intf) :
   end
 
   let set mdb location account =
-    set_bin mdb location Account.bin_size_t Account.bin_write_t account ;
-    set_hash mdb
-      (Location.Hash (Location.to_path_exn location))
-      (Hash.hash_account account)
+    Printf.eprintf "MY_LOG.MERKLE_LEDGER.DATABASE.SET\n%!" ;
+    let location = location_to_rust location in
+    Rust.database_set mdb location (account_to_rust account)
+
+  (* set_bin mdb location Account.bin_size_t Account.bin_write_t account ; *)
+  (* set_hash mdb *)
+  (*   (Location.Hash (Location.to_path_exn location)) *)
+  (*   (Hash.hash_account account) *)
 
   let index_of_account_exn mdb account_id =
-    let location = location_of_account mdb account_id |> Option.value_exn in
-    let addr = Location.to_path_exn location in
-    Addr.to_int addr
+    Rust.database_index_of_account mdb (account_id_to_rust account_id)
+  (* let location = location_of_account mdb account_id |> Option.value_exn in *)
+  (* let addr = Location.to_path_exn location in *)
+  (* Addr.to_int addr *)
 
   let set_at_index_exn mdb index account =
-    let addr = Addr.of_int_exn ~ledger_depth:mdb.depth index in
-    set mdb (Location.Account addr) account
+    Rust.database_set_at_index mdb index (account_to_rust account)
+  (* let addr = Addr.of_int_exn ~ledger_depth:mdb.depth index in *)
+  (* set mdb (Location.Account addr) account *)
 
   let get_or_create_account mdb account_id account =
-    match Account_location.get mdb account_id with
-    | Error Account_location_not_found -> (
-        match Account_location.allocate mdb account_id with
-        | Ok location ->
-            set mdb location account ;
-            Tokens.add_account mdb account_id ;
-            Ok (`Added, location)
-        | Error err ->
-            Error (Error.create "get_or_create_account" err Db_error.sexp_of_t)
-        )
-    | Error err ->
-        Error (Error.create "get_or_create_account" err Db_error.sexp_of_t)
-    | Ok location ->
-        Ok (`Existed, location)
+    Printf.eprintf "MY_LOG.MERKLE_LEDGER.DATABASE.GET_OR_CREATE_ACCOUNT\n%!" ;
+    let account_id = account_id_to_rust account_id in
+    let account = account_to_rust account in
+    match Rust.database_get_or_create_account mdb account_id account with
+    | Ok (location, addr) ->
+        Ok (location, Location.Account (Addr.of_string addr))
+    | Error _err ->
+        Error (Error.of_string "get_or_create_account")
 
-  let num_accounts t =
-    match Account_location.last_location_address t with
-    | None ->
-        0
-    | Some addr ->
-        Addr.to_int addr + 1
+  (* match Account_location.get mdb account_id with *)
+  (* | Error Account_location_not_found -> ( *)
+  (*     match Account_location.allocate mdb account_id with *)
+  (*     | Ok location -> *)
+  (*         set mdb location account ; *)
+  (*         Tokens.add_account mdb account_id ; *)
+  (*         Ok (`Added, location) *)
+  (*     | Error err -> *)
+  (*         Error (Error.create "get_or_create_account" err Db_error.sexp_of_t) *)
+  (*     ) *)
+  (* | Error err -> *)
+  (*     Error (Error.create "get_or_create_account" err Db_error.sexp_of_t) *)
+  (* | Ok location -> *)
+  (*     Ok (`Existed, location) *)
+
+  let num_accounts t = Rust.database_num_accounts t
+
+  (* match Account_location.last_location_address t with *)
+  (* | None -> *)
+  (*     0 *)
+  (* | Some addr -> *)
+  (*     Addr.to_int addr + 1 *)
 
   (* TODO : if key-value store supports iteration mechanism, like RocksDB,
      maybe use that here, instead of loading all accounts into memory See Issue
      #1191 *)
+
   let foldi_with_ignored_accounts t ignored_accounts ~init ~f =
-    let f' index accum account =
-      f (Addr.of_int_exn ~ledger_depth:(depth t) index) accum account
+    let accum = ref init in
+    let ignored_accounts =
+      Account_id.Set.to_list ignored_accounts |> List.map ~f:account_id_to_rust
     in
-    match Account_location.last_location_address t with
-    | None ->
-        init
-    | Some last_addr ->
-        let ignored_indices =
-          Int.Set.map ignored_accounts ~f:(fun account_id ->
-              try index_of_account_exn t account_id with _ -> -1
-              (* dummy index for accounts not in database *) )
-        in
-        let last = Addr.to_int last_addr in
-        Sequence.range ~stop:`inclusive 0 last
-        (* filter out indices corresponding to ignored accounts *)
-        |> Sequence.filter ~f:(fun loc -> not (Int.Set.mem ignored_indices loc))
-        |> Sequence.map ~f:(get_at_index_exn t)
-        |> Sequence.foldi ~init ~f:f'
+    Rust.database_foldi_with_ignored_accounts t ignored_accounts
+      (fun addr account ->
+        accum := f (Addr.of_string addr) !accum (account_from_rust account) ) ;
+    !accum
+
+  (* Rust.database_fold_with_ignored_accounts t ignored_accounts init f *)
+
+  (* let f' index accum account = *)
+  (*   f (Addr.of_int_exn ~ledger_depth:(depth t) index) accum account *)
+  (* in *)
+  (* match Account_location.last_location_address t with *)
+  (* | None -> *)
+  (*     init *)
+  (* | Some last_addr -> *)
+  (*     let ignored_indices = *)
+  (*       Int.Set.map ignored_accounts ~f:(fun account_id -> *)
+  (*           try index_of_account_exn t account_id with _ -> -1 *)
+  (*           (\* dummy index for accounts not in database *\) ) *)
+  (*     in *)
+  (*     let last = Addr.to_int last_addr in *)
+  (*     Sequence.range ~stop:`inclusive 0 last *)
+  (*     (\* filter out indices corresponding to ignored accounts *\) *)
+  (*     |> Sequence.filter ~f:(fun loc -> not (Int.Set.mem ignored_indices loc)) *)
+  (*     |> Sequence.map ~f:(get_at_index_exn t) *)
+  (*     |> Sequence.foldi ~init ~f:f' *)
 
   let foldi t ~init ~f =
-    foldi_with_ignored_accounts t Account_id.Set.empty ~init ~f
+    let accum = ref init in
+    Rust.database_foldi t (fun addr account ->
+        accum := f (Addr.of_string addr) !accum (account_from_rust account) ) ;
+    !accum
 
-  module C : Container.S0 with type t := t and type elt := Account.t =
-  Container.Make0 (struct
-    module Elt = Account
+  (* Rust.database_fold t init f *)
+  (* foldi_with_ignored_accounts t Account_id.Set.empty ~init ~f *)
 
-    type nonrec t = t
+  (* module C : Container.S0 with type t := t and type elt := Account.t = *)
+  (* Container.Make0 (struct *)
+  (*   module Elt = Account *)
 
-    let fold t ~init ~f =
-      let f' _index accum account = f accum account in
-      foldi t ~init ~f:f'
+  (*   type nonrec t = t *)
 
-    let iter = `Define_using_fold
+  (*   let fold t ~init ~f = *)
+  (*     let f' _index accum account = f accum account in *)
+  (*     foldi t ~init ~f:f' *)
 
-    (* Use num_accounts instead? *)
-    let length = `Define_using_fold
-  end)
+  (*   let iter = `Define_using_fold *)
 
-  let fold_until = C.fold_until
+  (*   (\* Use num_accounts instead? *\) *)
+  (*   let length = `Define_using_fold *)
+  (* end) *)
 
-  let merkle_root mdb = get_hash mdb Location.root_hash
+  let fold_until t ~init ~f =
+    let _t = t in
+    let _init = init in
+    let _f = f in
+    failwith "fold_until: not implemented"
+  (* Rust.database_fold_until t init f *)
+  (* let fold_until = C.fold_until *)
 
-  let remove_accounts_exn t keys =
-    let locations =
-      (* if we don't have a location for all keys, raise an exception *)
-      let rec loop keys accum =
-        match keys with
-        | [] ->
-            accum (* no need to reverse *)
-        | key :: rest -> (
-            match Account_location.get t key with
-            | Ok loc ->
-                loop rest (loc :: accum)
-            | Error err ->
-                raise (Db_error.Db_exception err) )
-      in
-      loop keys []
-    in
-    (* N.B.: we're not using stack database here to make available newly-freed
-       locations *)
-    List.iter keys ~f:(Account_location.delete t) ;
-    List.iter keys ~f:(Tokens.remove_account t) ;
-    List.iter locations ~f:(fun loc -> delete_raw t loc) ;
-    (* recalculate hashes for each removed account *)
-    List.iter locations ~f:(fun loc ->
-        let hash_loc = Location.Hash (Location.to_path_exn loc) in
-        set_hash t hash_loc Hash.empty_account )
+  let merkle_root mdb = Rust.database_merkle_root mdb |> hash_from_rust
+  (* let merkle_root mdb = get_hash mdb Location.root_hash *)
+
+  let remove_accounts_exn t account_ids =
+    let account_ids = List.map account_ids ~f:account_id_to_rust in
+    Rust.database_remove_accounts t account_ids
+
+  (* let locations = *)
+  (*   (\* if we don't have a location for all keys, raise an exception *\) *)
+  (*   let rec loop keys accum = *)
+  (*     match keys with *)
+  (*     | [] -> *)
+  (*         accum (\* no need to reverse *\) *)
+  (*     | key :: rest -> ( *)
+  (*         match Account_location.get t key with *)
+  (*         | Ok loc -> *)
+  (*             loop rest (loc :: accum) *)
+  (*         | Error err -> *)
+  (*             raise (Db_error.Db_exception err) ) *)
+  (*   in *)
+  (*   loop keys [] *)
+  (* in *)
+  (* (\* N.B.: we're not using stack database here to make available newly-freed *)
+  (*    locations *\) *)
+  (* List.iter keys ~f:(Account_location.delete t) ; *)
+  (* List.iter keys ~f:(Tokens.remove_account t) ; *)
+  (* List.iter locations ~f:(fun loc -> delete_raw t loc) ; *)
+  (* (\* recalculate hashes for each removed account *\) *)
+  (* List.iter locations ~f:(fun loc -> *)
+  (*     let hash_loc = Location.Hash (Location.to_path_exn loc) in *)
+  (*     set_hash t hash_loc Hash.empty_account ) *)
 
   let merkle_path mdb location =
-    let location =
-      if Location.is_account location then
-        Location.Hash (Location.to_path_exn location)
-      else location
-    in
-    assert (Location.is_hash location) ;
-    let rec loop k =
-      if Location.height ~ledger_depth:mdb.depth k >= mdb.depth then []
-      else
-        let sibling = Location.sibling k in
-        let sibling_dir = Location.last_direction (Location.to_path_exn k) in
-        let hash = get_hash mdb sibling in
-        Direction.map sibling_dir ~left:(`Left hash) ~right:(`Right hash)
-        :: loop (Location.parent k)
-    in
-    loop location
+    let empty = Account.empty in
+    let hash_empty = Hash.hash_account empty in
+    Printf.eprintf "MY_LOG.MERKLE_LEDGER.DATABASE.MERKLE_PATH %s\n%!"
+      (* (Hash.to_base58_check hash_empty) ; *)
+      (Snark_params.Tick.Field.to_string hash_empty) ;
+    Rust.database_merkle_path mdb (location_to_rust location)
+    |> List.map ~f:path_from_rust
 
-  let merkle_path_at_addr_exn t addr = merkle_path t (Location.Hash addr)
+  (* let location = *)
+  (*   if Location.is_account location then *)
+  (*     Location.Hash (Location.to_path_exn location) *)
+  (*   else location *)
+  (* in *)
+  (* assert (Location.is_hash location) ; *)
+  (* let rec loop k = *)
+  (*   if Location.height ~ledger_depth:mdb.depth k >= mdb.depth then [] *)
+  (*   else *)
+  (*     let sibling = Location.sibling k in *)
+  (*     let sibling_dir = Location.last_direction (Location.to_path_exn k) in *)
+  (*     let hash = get_hash mdb sibling in *)
+  (*     Direction.map sibling_dir ~left:(`Left hash) ~right:(`Right hash) *)
+  (*     :: loop (Location.parent k) *)
+  (* in *)
+  (* loop location *)
 
-  let merkle_path_at_index_exn t index =
-    let addr = Addr.of_int_exn ~ledger_depth:t.depth index in
-    merkle_path_at_addr_exn t addr
+  let merkle_path_at_addr_exn mdb addr =
+    Rust.database_merkle_path_at_addr mdb (Addr.to_string addr)
+    |> List.map ~f:path_from_rust
+
+  (* failwith "merkle_path_at_addr_exn: not implemented" *)
+  (* TODO *)
+  (* let ledger_depth = depth t in *)
+  (* let _ = *)
+  (*   Rust.database_merkle_path_at_addr t *)
+  (*     (Bigstring.to_bytes *)
+  (*        (Location.serialize ~ledger_depth (Location.Hash addr)) ) *)
+  (* in *)
+
+  (* let merkle_path_at_addr_exn t addr = merkle_path t (Location.Hash addr) *)
+
+  let merkle_path_at_index_exn mdb index =
+    Rust.database_merkle_path_at_index mdb index |> List.map ~f:path_from_rust
+  (* failwith "merkle_path_at_index: not implemented" *)
+  (* Rust.database_merkle_path_at_index t index *)
+
+  (* let addr = Addr.of_int_exn ~ledger_depth:t.depth index in *)
+  (* merkle_path_at_addr_exn t addr *)
+
+  let set_all_accounts_rooted_at_exn t addr accounts =
+    let accounts = List.map accounts ~f:account_to_rust in
+    Rust.database_set_all_accounts_rooted_at t (Addr.to_string addr) accounts
+
+  let set_batch_accounts t list =
+    Printf.eprintf "SET_BATCH_ACCOUNT '%s'\n%!"
+      (Addr.to_string (Addr.of_string "0101011111")) ;
+    let accounts =
+      List.map list ~f:(fun (addr, account) ->
+          Printf.eprintf "ADDR HERE %s\n%!" (Addr.to_string addr) ;
+          (Addr.to_string addr, account_to_rust account) )
+    in
+    Rust.database_set_batch_accounts t accounts
+
+  let set_batch t list =
+    Printf.eprintf "SET_BATCH\n%!" ;
+    let accounts =
+      List.map list ~f:(fun (location, account) ->
+          (location_to_rust location, account_to_rust account) )
+    in
+    Rust.database_set_batch_accounts t accounts
+
+  let get_all_accounts_rooted_at_exn t addr =
+    let accounts =
+      Rust.database_get_all_accounts_rooted_at t (Addr.to_string addr)
+    in
+    List.map accounts ~f:(fun (addr, account) ->
+        (Addr.of_string addr, account_from_rust account) )
 end

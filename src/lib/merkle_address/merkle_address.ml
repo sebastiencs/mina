@@ -30,6 +30,12 @@ let of_directions dirs =
   in
   loop 0 dirs ; path
 
+let of_string buf =
+  String.to_list buf
+  |> List.map ~f:(fun c -> Char.to_int c - 48)
+  |> List.map ~f:Direction.of_int_exn
+  |> of_directions
+
 let to_yojson t = `String (to_string t)
 
 let to_tuple path =
