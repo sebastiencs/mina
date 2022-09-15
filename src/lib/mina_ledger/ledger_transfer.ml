@@ -20,7 +20,7 @@ end = struct
   let transfer_accounts ~src ~dest =
     let accounts =
       Source.foldi src ~init:[] ~f:(fun addr acc account ->
-          Printf.eprintf "TRANSFER ADDR=%s\n%!" (Source.Addr.to_string addr) ;
+          (* Printf.eprintf "TRANSFER ADDR=%s\n%!" (Source.Addr.to_string addr) ; *)
           (addr, account) :: acc )
     in
     Dest.set_batch_accounts dest accounts ;

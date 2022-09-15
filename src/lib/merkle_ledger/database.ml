@@ -82,16 +82,16 @@ module Make (Inputs : Inputs_intf) :
         `Right (hash_from_rust hash)
 
   let location_to_rust location =
-    let s =
-      match location with
-      | Location.Generic bigs ->
-          "Generic " ^ Bigstring.to_string bigs
-      | Location.Account addr ->
-          "Account " ^ Addr.to_string addr
-      | Location.Hash addr ->
-          "Hash " ^ Addr.to_string addr
-    in
-    Printf.eprintf "%s\n%!" s ;
+    (* let s = *)
+    (*   match location with *)
+    (*   | Location.Generic bigs -> *)
+    (*       "Generic " ^ Bigstring.to_string bigs *)
+    (*   | Location.Account addr -> *)
+    (*       "Account " ^ Addr.to_string addr *)
+    (*   | Location.Hash addr -> *)
+    (*       "Hash " ^ Addr.to_string addr *)
+    (* in *)
+    (* Printf.eprintf "%s\n%!" s ; *)
     Location.to_path_exn location |> Addr.to_string
 
   let account_location_from_rust addr = Location.Account (Addr.of_string addr)
