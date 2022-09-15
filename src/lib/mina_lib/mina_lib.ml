@@ -211,7 +211,7 @@ module Snark_worker = struct
           | Ok () ->
               [%log info] "Snark worker process died" ;
               if Ivar.is_full kill_ivar then
-                [%log error] "Ivar.fill bug is here!" ;
+                [%log error] "Ivar.fill bug is here 222!" ;
               Ivar.fill kill_ivar () ;
               Deferred.unit
           | Error (`Exit_non_zero non_zero_error) ->
@@ -265,7 +265,7 @@ module Snark_worker = struct
             ]
           "Started snark worker process with pid: $snark_worker_pid" ;
         if Ivar.is_full process_ivar then
-          [%log' error t.config.logger] "Ivar.fill bug is here!" ;
+          [%log' error t.config.logger] "Ivar.fill bug is here 333!" ;
         Ivar.fill process_ivar snark_worker_process
     | `Off _ ->
         [%log' info t.config.logger]
@@ -1132,67 +1132,67 @@ let perform_compaction t =
       in
       perform interval_configured
 
-let check_and_stop_daemon t ~wait =
-  let uptime_mins =
-    Time_ns.(diff (now ()) daemon_start_time |> Span.to_min |> Int.of_float)
-  in
-  let max_catchup_time = Time.Span.of_hr 1. in
-  if uptime_mins <= wait then
-    `Check_in
-      (Block_time.Span.to_time_span
-         t.config.precomputed_values.consensus_constants.slot_duration_ms )
-  else
-    match t.next_producer_timing with
-    | None ->
-        `Now
-    | Some timing -> (
-        match timing.timing with
-        | Daemon_rpcs.Types.Status.Next_producer_timing.Check_again tm
-        | Produce { time = tm; _ }
-        | Produce_now { time = tm; _ } ->
-            let tm = Block_time.to_time_exn tm in
-            (*Assuming it takes at most 1hr to bootstrap and catchup*)
-            let next_block =
-              Time.add tm
-                (Block_time.Span.to_time_span
-                   t.config.precomputed_values.consensus_constants
-                     .slot_duration_ms )
-            in
-            let wait_for = Time.(diff next_block (now ())) in
-            if Time.Span.(wait_for > max_catchup_time) then `Now
-            else `Check_in wait_for
-        | Evaluating_vrf _last_checked_slot ->
-            `Check_in
-              (Core.Time.Span.of_ms
-                 (Mina_compile_config.vrf_poll_interval_ms * 2 |> Int.to_float) )
-        )
+(* let check_and_stop_daemon t ~wait = *)
+(*   let uptime_mins = *)
+(*     Time_ns.(diff (now ()) daemon_start_time |> Span.to_min |> Int.of_float) *)
+(*   in *)
+(*   let max_catchup_time = Time.Span.of_hr 1. in *)
+(*   if uptime_mins <= wait then *)
+(*     `Check_in *)
+(*       (Block_time.Span.to_time_span *)
+(*          t.config.precomputed_values.consensus_constants.slot_duration_ms ) *)
+(*   else *)
+(*     match t.next_producer_timing with *)
+(*     | None -> *)
+(*         `Now *)
+(*     | Some timing -> ( *)
+(*         match timing.timing with *)
+(*         | Daemon_rpcs.Types.Status.Next_producer_timing.Check_again tm *)
+(*         | Produce { time = tm; _ } *)
+(*         | Produce_now { time = tm; _ } -> *)
+(*             let tm = Block_time.to_time_exn tm in *)
+(*             (\*Assuming it takes at most 1hr to bootstrap and catchup*\) *)
+(*             let next_block = *)
+(*               Time.add tm *)
+(*                 (Block_time.Span.to_time_span *)
+(*                    t.config.precomputed_values.consensus_constants *)
+(*                      .slot_duration_ms ) *)
+(*             in *)
+(*             let wait_for = Time.(diff next_block (now ())) in *)
+(*             if Time.Span.(wait_for > max_catchup_time) then `Now *)
+(*             else `Check_in wait_for *)
+(*         | Evaluating_vrf _last_checked_slot -> *)
+(*             `Check_in *)
+(*               (Core.Time.Span.of_ms *)
+(*                  (Mina_compile_config.vrf_poll_interval_ms * 2 |> Int.to_float) ) *)
+(*         ) *)
 
-let stop_long_running_daemon t =
-  let wait_mins = (t.config.stop_time * 60) + (Random.int 10 * 60) in
-  [%log' info t.config.logger]
-    "Stopping daemon after $wait mins and when there are no blocks to be \
-     produced"
-    ~metadata:[ ("wait", `Int wait_mins) ] ;
-  let stop_daemon () =
-    let uptime_mins =
-      Time_ns.(diff (now ()) daemon_start_time |> Span.to_min |> Int.of_float)
-    in
-    [%log' info t.config.logger]
-      "Deamon has been running for $uptime mins. Stopping now..."
-      ~metadata:[ ("uptime", `Int uptime_mins) ] ;
-    Scheduler.yield ()
-    >>= (fun () -> return (Async.shutdown 1))
-    |> don't_wait_for
-  in
-  let rec go interval =
-    upon (after interval) (fun () ->
-        match check_and_stop_daemon t ~wait:wait_mins with
-        | `Now ->
-            stop_daemon ()
-        | `Check_in tm ->
-            go tm )
-  in
-  go (Time.Span.of_ms (wait_mins * 60 * 1000 |> Float.of_int))
+(* let stop_long_running_daemon t = *)
+(*   let wait_mins = (t.config.stop_time * 60) + (Random.int 10 * 60) in *)
+(*   [%log' info t.config.logger] *)
+(* "Stopping daemon after $wait mins and when there are no blocks to be \ *)
+   (*      produced" *)
+(*     ~metadata:[ ("wait", `Int wait_mins) ] ; *)
+(*   let stop_daemon () = *)
+(*     let uptime_mins = *)
+(*       Time_ns.(diff (now ()) daemon_start_time |> Span.to_min |> Int.of_float) *)
+(*     in *)
+(*     [%log' info t.config.logger] *)
+(*       "Deamon has been running for $uptime mins. Stopping now..." *)
+(*       ~metadata:[ ("uptime", `Int uptime_mins) ] ; *)
+(*     Scheduler.yield () *)
+(*     >>= (fun () -> return (Async.shutdown 1)) *)
+(*     |> don't_wait_for *)
+(*   in *)
+(*   let rec go interval = *)
+(*     upon (after interval) (fun () -> *)
+(*         match check_and_stop_daemon t ~wait:wait_mins with *)
+(*         | `Now -> *)
+(*             stop_daemon () *)
+(*         | `Check_in tm -> *)
+(*             go tm ) *)
+(*   in *)
+(*   go (Time.Span.of_ms (wait_mins * 60 * 1000 |> Float.of_int)) *)
 
 let offline_time
     { Genesis_constants.Constraint_constants.block_window_duration_ms; _ } =
@@ -1348,7 +1348,7 @@ let start t =
     ~get_next_producer_timing:(fun () -> t.next_producer_timing)
     ~get_snark_work_fee:(fun () -> snark_work_fee t)
     ~get_peer:(fun () -> t.config.gossip_net_params.addrs_and_ports.peer) ;
-  stop_long_running_daemon t ;
+  (* stop_long_running_daemon t ; *)
   Snark_worker.start t
 
 let start_with_precomputed_blocks t blocks =

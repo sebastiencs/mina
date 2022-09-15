@@ -501,6 +501,9 @@ module T = struct
   let apply_transaction_and_get_statement ~constraint_constants ledger
       (pending_coinbase_stack_state : Stack_state_with_init_stack.t) s
       txn_state_view =
+    (* let () = *)
+    (*   Core.Printf.eprintf "MY_LOG.APPLY_TRANSACTION_AND_GET_STATEMENT\n%!" *)
+    (* in *)
     let open Result.Let_syntax in
     (*TODO: check fee_excess as a result of applying the txns matches with this*)
     let%bind fee_excess =
@@ -534,9 +537,11 @@ module T = struct
       Ledger.Transaction_applied.supply_increase applied_txn
       |> to_staged_ledger_or_error
     in
+    (* Core.Printf.eprintf "MY_LOG.apply_transaction_and_get_statement\n%!" ; *)
     let target_merkle_root =
       Ledger.merkle_root ledger |> Frozen_ledger_hash.of_ledger_hash
     in
+    (* Core.Printf.eprintf "MY_LOG.apply_transaction_and_get_statement2\n%!" ; *)
     ( applied_txn
     , { Transaction_snark.Statement.source =
           { ledger = source_merkle_root
@@ -559,6 +564,7 @@ module T = struct
 
   let apply_transaction_and_get_witness ~constraint_constants ledger
       pending_coinbase_stack_state s status txn_state_view state_and_body_hash =
+    (* Core.Printf.eprintf "MY_LOG.APPLY_TRANSACTION_AND_GET_WITNESS\n%!" ; *)
     let open Deferred.Result.Let_syntax in
     let account_ids : Transaction.t -> _ = function
       | Fee_transfer t ->
@@ -573,33 +579,57 @@ module T = struct
           in
           Account_id.create c.receiver Token_id.default :: ft_receivers
     in
+    (* Core.Printf.eprintf "MY_LOG.APPLY_TRANSACTION_AND_GET_WITNESS_111\n%!" ; *)
     let ledger_witness =
       O1trace.sync_thread "create_ledger_witness" (fun () ->
           Sparse_ledger.of_ledger_subset_exn ledger (account_ids s) )
     in
+    (* Core.Printf.eprintf "MY_LOG.APPLY_TRANSACTION_AND_GET_WITNESS_222\n%!" ; *)
     let%bind () = yield_result () in
+
     let%bind applied_txn, statement, updated_pending_coinbase_stack_state =
       O1trace.sync_thread "apply_transaction_to_scan_state" (fun () ->
           apply_transaction_and_get_statement ~constraint_constants ledger
             pending_coinbase_stack_state s txn_state_view )
       |> Deferred.return
     in
+    (* Core.Printf.eprintf "MY_LOG.APPLY_TRANSACTION_AND_GET_STATEMENT.AAA\n%!" ; *)
     let%bind () = yield_result () in
+    (* Core.Printf.eprintf "MY_LOG.APPLY_TRANSACTION_AND_GET_STATEMENT.BBB\n%!" ; *)
     let%map () =
       match status with
       | None ->
+          (* Core.Printf.eprintf *)
+          (*   "MY_LOG.APPLY_TRANSACTION_AND_GET_STATEMENT.NONE\n%!" ; *)
           return ()
       | Some status ->
           (* Validate that command status matches. *)
           let got_status =
             Ledger.Transaction_applied.transaction_status applied_txn
           in
-          if Transaction_status.equal status got_status then return ()
+          (* Core.Printf.eprintf *)
+          (*   "MY_LOG.APPLY_TRANSACTION_AND_GET_STATEMENT STATUS=%s GOT_STATUS=%s\n\ *)
+          (*    %!" *)
+          (*   ( match status with *)
+          (*   | Transaction_status.Applied -> *)
+          (*       "applied" *)
+          (*   | Transaction_status.Failed _e -> *)
+          (*       "failed" ) *)
+          (*   ( match got_status with *)
+          (*   | Transaction_status.Applied -> *)
+          (*       "applied" *)
+          (*   | Transaction_status.Failed _ -> *)
+          (*       "failed" ) ; *)
+          if Transaction_status.equal status got_status then (
+            (* Core.Printf.eprintf *)
+            (*   "MY_LOG.APPLY_TRANSACTION_AND_GET_STATEMENT.EQUAL\n%!" ; *)
+            return () )
           else
             Deferred.Result.fail
               (Staged_ledger_error.Mismatched_statuses
                  ({ With_status.data = s; status }, got_status) )
     in
+    (* Core.Printf.eprintf "MY_LOG.APPLY_TRANSACTION_AND_GET_STATEMENT.SUCCESS\n%!" ; *)
     ( { Scan_state.Transaction_with_witness.transaction_with_info = applied_txn
       ; state_hash = state_and_body_hash
       ; ledger_witness
@@ -640,8 +670,13 @@ module T = struct
                   (Some t.status) current_state_view state_and_body_hash
               with
               | Ok (res, updated_pending_coinbase_stack_state) ->
+                  (* Core.Printf.eprintf *)
+                  (*   "MY_LOG.update_ledger_and_get_statements OK\n%!" ; *)
                   (res :: acc, updated_pending_coinbase_stack_state)
               | Error err ->
+                  Core.Printf.eprintf
+                    "MY_LOG.update_ledger_and_get_statements ERR=%s\n%!"
+                    (Staged_ledger_error.to_string err) ;
                   raise (Exit err) ) )
       |> Deferred.Result.map_error ~f:(function
            | Exit err ->

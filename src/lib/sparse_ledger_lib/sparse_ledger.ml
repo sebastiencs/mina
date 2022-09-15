@@ -122,6 +122,12 @@ end = struct
 
   let merkle_root { T.tree; _ } = hash tree
 
+  (* , add_path sl *)
+  (*     (Ledger.merkle_path ledger loc) *)
+  (*     key *)
+  (*     ( Ledger.get ledger loc *)
+  (*     |> Option.value_exn ?here:None ?error:None ?message:None ) ) *)
+
   let add_path depth0 tree0 path0 account =
     let rec build_tree height p =
       match p with
@@ -136,6 +142,7 @@ end = struct
           Account account
     in
     let rec union height tree path =
+      (* Printf.eprintf "union height=%d\n%!" height ; *)
       match (tree, path) with
       | Tree.Hash h, path ->
           let t = build_tree height path in
@@ -161,9 +168,20 @@ end = struct
           assert (Account.equal a account) ;
           tree
     in
+    (* let v = *)
+    (*   List.map path0 ~f:(fun p -> *)
+    (*       match p with `Right _ -> "right" | `Left _ -> "left" ) *)
+    (* in *)
+    (* Printf.eprintf "PATH LEN=%s\n%!" (String.concat ~sep:"," v) ; *)
+    (* let v = *)
+    (*   List.map path0 ~f:(fun p -> match p with `Right h -> h | `Left h -> h) *)
+    (* in *)
+    (* let v = List.map v ~f:(fun h -> Snark_params.Tick.Field.to_string h) in *)
+    (* Printf.eprintf "PATH LEN=%s\n%!" (String.concat ~sep:"," v) ; *)
     union (depth0 - 1) tree0 (List.rev path0)
 
   let add_path (t : t) path account_id account =
+    (* Printf.eprintf "add_path called\n%!" ; *)
     let index =
       List.foldi path ~init:0 ~f:(fun i acc x ->
           match x with `Right _ -> acc + (1 lsl i) | `Left _ -> acc )

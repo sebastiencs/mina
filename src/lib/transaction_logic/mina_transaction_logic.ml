@@ -608,6 +608,14 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
       ~(constraint_constants : Genesis_constants.Constraint_constants.t) action
       amount =
     let fee = constraint_constants.account_creation_fee in
+
+    (* Printf.eprintf "MY_LOG.TRANSACTION_LOGIC.sub_account_creation_fee %d\n%!" *)
+    (*   (Fee.to_int fee) ; *)
+
+    (* if Ledger_intf.equal_account_state action `Added then *)
+    (*   Printf.eprintf "MY_LOG.TRANSACTION_LOGIC.EQUAL_ADDED %d\n%!" *)
+    (*     (Amount.to_int amount) ; *)
+
     if Ledger_intf.equal_account_state action `Added then
       error_opt
         (sprintf
@@ -836,9 +844,11 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
           , Transaction_applied.Signed_command_applied.Body.Stake_delegation
               { previous_delegate } )
       | Payment { amount; _ } ->
+         (* Printf.eprintf "MY_LOG.getting_location\n%!"; *)
           let receiver_location, receiver_account =
             get_with_location ledger receiver |> ok_or_reject
           in
+         (* Printf.eprintf "MY_LOG.got location\n%!"; *)
           let%bind () =
             if Account.has_permission ~to_:`Receive receiver_account then Ok ()
             else Error Transaction_status.Failure.Update_not_permitted_balance
@@ -903,16 +913,23 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
           in
           (* Charge the account creation fee. *)
           let%bind receiver_amount =
+            (* Printf.eprintf "Amount_insufficient_to_create_account HERE222\n%!" ; *)
             match receiver_location with
             | `Existing _ ->
+                (* Printf.eprintf *)
+                (*   "MY_LOG.apply_user_command_unchecked existing\n%!" ; *)
                 return amount
             | `New ->
-                (* Subtract the creation fee from the transaction amount. *)
+               (* Subtract the creation fee from the transaction amount. *)
+
                 sub_account_creation_fee ~constraint_constants `Added amount
                 |> Result.map_error ~f:(fun _ ->
                        Transaction_status.Failure
                        .Amount_insufficient_to_create_account )
           in
+          (* Printf.eprintf *)
+          (*   "MY_LOG.apply_user_command_unchecked receiver_amount=%d\n%!" *)
+          (*   (Amount.to_int receiver_amount) ; *)
           let%map receiver_account =
             incr_balance receiver_account receiver_amount
           in
@@ -923,6 +940,23 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
             | `New ->
                 [ receiver ]
           in
+          (* let receiver_loc = *)
+          (*   match receiver_location with *)
+          (*   | `Existing _ -> *)
+          (*       "Existing" *)
+          (*   | `New -> *)
+          (*       "New" *)
+          (* in *)
+          (* let source_loc = *)
+          (*   match source_location with *)
+          (*   | `Existing _ -> *)
+          (*       "Existing" *)
+          (*   | `New -> *)
+          (*       "New" *)
+          (* in *)
+          (* Printf.eprintf *)
+          (*   "MY_LOG.apply_user_command_unchecked applied receiver=%s source=%s!\n%!" *)
+          (*   receiver_loc source_loc ; *)
           ( [ (receiver_location, receiver_account)
             ; (source_location, source_account)
             ]
@@ -931,6 +965,7 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
     in
     match compute_updates () with
     | Ok (located_accounts, applied_body) ->
+        (* Printf.eprintf "compute_updates ok\n%!" ; *)
         (* Update the ledger. *)
         let%bind () =
           List.fold located_accounts ~init:(Ok ())
@@ -942,10 +977,13 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
             =
           { user_command = { data = user_command; status = Applied } }
         in
+        (* Printf.eprintf "compute_updates ok2\n%!" ; *)
         return
           ( { common = applied_common; body = applied_body }
             : Transaction_applied.Signed_command_applied.t )
     | Error failure ->
+        (* Printf.eprintf "compute_updates err=%s\n%!" *)
+        (*   (Transaction_status.Failure.to_string failure) ; *)
         (* Do not update the ledger. Except for the fee payer which is already updated *)
         let applied_common : Transaction_applied.Signed_command_applied.Common.t
             =
@@ -962,6 +1000,7 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
           ( { common = applied_common; body = Failed }
             : Transaction_applied.Signed_command_applied.t )
     | exception Reject err ->
+        (* Printf.eprintf "compute_updates exception\n%!" ; *)
         (* TODO: These transactions should never reach this stage, this error
            should be fatal.
         *)
@@ -2133,20 +2172,24 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
     Or_error.map
       ( match t with
       | Command (Signed_command txn) ->
+          (* Printf.eprintf "MY_LOG.APPLY_TRANSACTION.SIGNED_COMMAND\n%!" ; *)
           Or_error.map
             (apply_user_command_unchecked ~constraint_constants ~txn_global_slot
                ledger txn ) ~f:(fun applied ->
               Transaction_applied.Varying.Command (Signed_command applied) )
       | Command (Zkapp_command txn) ->
+          (* Printf.eprintf "MY_LOG.APPLY_TRANSACTION.ZKAPP_COMMAND\n%!" ; *)
           Or_error.map
             (apply_zkapp_command_unchecked ~state_view:txn_state_view
                ~constraint_constants ledger txn ) ~f:(fun (applied, _) ->
               Transaction_applied.Varying.Command (Zkapp_command applied) )
       | Fee_transfer t ->
+          (* Printf.eprintf "MY_LOG.APPLY_TRANSACTION.FREE_TRANSFER\n%!" ; *)
           Or_error.map
             (apply_fee_transfer ~constraint_constants ~txn_global_slot ledger t)
             ~f:(fun applied -> Transaction_applied.Varying.Fee_transfer applied)
       | Coinbase t ->
+          (* Printf.eprintf "MY_LOG.APPLY_TRANSACTION.COINBASE\n%!" ; *)
           Or_error.map
             (apply_coinbase ~constraint_constants ~txn_global_slot ledger t)
             ~f:(fun applied -> Transaction_applied.Varying.Coinbase applied) )

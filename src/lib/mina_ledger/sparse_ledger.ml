@@ -25,11 +25,25 @@ let of_any_ledger (ledger : Ledger.Any_ledger.witness) =
 
 let of_ledger_subset_exn (oledger : Ledger.t) keys =
   let ledger = Ledger.copy oledger in
+  (* Printf.eprintf "KEYS_LENGTH=%d\n%!" (List.length keys) ; *)
   let _, sparse =
     List.fold keys
       ~f:(fun (new_keys, sl) key ->
         match Ledger.location_of_account ledger key with
         | Some loc ->
+            (* let path = Ledger.merkle_path ledger loc in *)
+            (* let v = *)
+            (*   List.map path ~f:(fun p -> *)
+            (*       match p with `Right h -> h | `Left h -> h ) *)
+            (* in *)
+            (* let v = List.map v ~f:Snark_params.Tick.Field.to_string in *)
+            (* Printf.eprintf "PATH=%s\n%!" (String.concat ~sep:"," v) ; *)
+
+            (* let root = Ledger.merkle_root ledger in *)
+            (* Printf.eprintf "location=%s root=%s num_accounts=%d\n%!" *)
+            (*   (Ledger.Location.to_path_exn loc |> Ledger.Addr.to_string) *)
+            (*   (Snark_params.Tick.Field.to_string root) *)
+            (*   (Ledger.num_accounts ledger) ; *)
             ( new_keys
             , add_path sl
                 (Ledger.merkle_path ledger loc)
@@ -37,6 +51,7 @@ let of_ledger_subset_exn (oledger : Ledger.t) keys =
                 ( Ledger.get ledger loc
                 |> Option.value_exn ?here:None ?error:None ?message:None ) )
         | None ->
+            (* Printf.eprintf "no location\n%!" ; *)
             let path, acct = Ledger.create_empty_exn ledger key in
             (key :: new_keys, add_path sl path key acct) )
       ~init:([], of_ledger_root ledger)

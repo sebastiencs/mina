@@ -29,6 +29,8 @@
    non_empty_list
    visualization
    ppx_version.runtime
+   mina_tree
+   snark_params
  )
  (preprocess
   (pps ppx_mina ppx_version ppx_jane ppx_compare ppx_deriving.show ppx_deriving_yojson))
