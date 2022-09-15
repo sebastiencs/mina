@@ -47,10 +47,19 @@ export MINA_TIME_OFFSET
 
 export RUST_BACKTRACE=1
 
+export MINA_LIBP2P_PASS=""
+
+mkdir -p "$MINA_SANDBOX_DIR/keys/"
+# mkdir -p --mode=700 "$MINA_SANDBOX_DIR/keys/"
+$MINA_EXE_PATH advanced generate-libp2p-keypair -privkey-path "$MINA_SANDBOX_DIR/keys/libp2p_key"
+# $MINA_EXE_PATH advanced generate-keypair -privkey-path "$MINA_SANDBOX_DIR/keys/libp2p_key"
+chmod 700 "$MINA_SANDBOX_DIR/keys/"
+# chmod 600 /tmp/mina-sandbox/keys/libp2p_key.pub
+
 # gdb --args $MINA_EXE_PATH daemon --generate-genesis-proof true --seed --demo-mode --proof-level none --config-dir ${MINA_CONFIG_DIR} --block-producer-pubkey ${PK} --run-snark-worker ${SNARK_PK} -insecure-rest-server $@
 
 # gdb --args \
-$MINA_EXE_PATH daemon --generate-genesis-proof true --seed --demo-mode --proof-level none --config-dir ${MINA_CONFIG_DIR} --block-producer-pubkey ${PK} --run-snark-worker ${SNARK_PK} -insecure-rest-server $@
+$MINA_EXE_PATH daemon --libp2p-keypair "$MINA_SANDBOX_DIR/keys/libp2p_key" --generate-genesis-proof true --seed --demo-mode --proof-level none --config-dir ${MINA_CONFIG_DIR} --block-producer-pubkey ${PK} --run-snark-worker ${SNARK_PK} -insecure-rest-server $@
 
 rc=$?
 echo "Exiting Mina demo." && exit $rc
