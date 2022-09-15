@@ -74,14 +74,14 @@ module Make (Inputs : Intf.Inputs_intf) :
           Option.map (Work.Single.Spec.witness t) ~f:(fun w ->
               w.Transaction_witness.transaction )
 
-        let statement = Work.Single.Spec.statement
+        let _statement = Work.Single.Spec.statement
       end
     end
 
     module Spec = struct
       type t = Single.Spec.t Work.Spec.t [@@deriving sexp, yojson]
 
-      let instances = Work.Spec.instances
+      let _instances = Work.Spec.instances
     end
 
     module Result = struct
@@ -160,8 +160,9 @@ module Make (Inputs : Intf.Inputs_intf) :
                 Cryptography.snark_work_merge_time_sec (Time.Span.to_sec time)) ;
             [%str_log info] (Merge_snark_generated { time })
         | `Transition ->
-            let transaction_type, zkapp_command_count, proof_zkapp_command_count
-                =
+            let ( _transaction_type
+                , _zkapp_command_count
+                , _proof_zkapp_command_count ) =
               (*should be Some in the case of `Transition*)
               match Option.value_exn single with
               | Mina_transaction.Transaction.Command
@@ -215,13 +216,14 @@ module Make (Inputs : Intf.Inputs_intf) :
                       (Time.Span.to_sec time)) ;
                   ("fee_transfer", 1, 0)
             in
-            [%str_log info]
-              (Base_snark_generated
-                 { time
-                 ; transaction_type
-                 ; zkapp_command_count
-                 ; proof_zkapp_command_count
-                 } ) )
+            ()
+        (* [%str_log info]
+         *   (Base_snark_generated
+         *      { time
+         *      ; transaction_type
+         *      ; zkapp_command_count
+         *      ; proof_zkapp_command_count
+         *   } ) *) )
 
   let main
       (module Rpcs_versioned : Intf.Rpcs_versioned_S
@@ -255,10 +257,10 @@ module Make (Inputs : Intf.Inputs_intf) :
     in
     let rec go () =
       let%bind daemon_address =
-        let%bind cwd = Sys.getcwd () in
-        [%log debug]
-          !"Snark worker working directory $dir"
-          ~metadata:[ ("dir", `String cwd) ] ;
+        (* let%bind cwd = Sys.getcwd () in
+         * [%log debug]
+         *   !"Snark worker working directory $dir"
+         *   ~metadata:[ ("dir", `String cwd) ] ; *)
         let path = "snark_coordinator" in
         match%bind Sys.file_exists path with
         | `Yes -> (
@@ -268,9 +270,9 @@ module Make (Inputs : Intf.Inputs_intf) :
         | `No | `Unknown ->
             return daemon_address
       in
-      [%log debug]
-        !"Snark worker using daemon $addr"
-        ~metadata:[ ("addr", `String (Host_and_port.to_string daemon_address)) ] ;
+      (* [%log debug]
+       *   !"Snark worker using daemon $addr"
+       *   ~metadata:[ ("addr", `String (Host_and_port.to_string daemon_address)) ] ; *)
       match%bind
         dispatch Rpcs_versioned.Get_work.Latest.rpc shutdown_on_disconnect ()
           daemon_address
@@ -288,16 +290,16 @@ module Make (Inputs : Intf.Inputs_intf) :
           let%bind () = wait ~sec:random_delay () in
           go ()
       | Ok (Some (work, public_key)) -> (
-          [%log info]
-            "SNARK work $work_ids received from $address. Starting proof \
-             generation"
-            ~metadata:
-              [ ("address", `String (Host_and_port.to_string daemon_address))
-              ; ( "work_ids"
-                , Transaction_snark_work.Statement.compact_json
-                    (One_or_two.map (Work.Spec.instances work)
-                       ~f:Work.Single.Spec.statement ) )
-              ] ;
+          (* [%log info]
+           *   "SNARK work $work_ids received from $address. Starting proof \
+           *    generation"
+           *   ~metadata:
+           *     [ ("address", `String (Host_and_port.to_string daemon_address))
+           *     ; ( "work_ids"
+           *       , Transaction_snark_work.Statement.compact_json
+           *           (One_or_two.map (Work.Spec.instances work)
+           *              ~f:Work.Single.Spec.statement ) )
+           *     ] ; *)
           let%bind () = wait () in
           (* Pause to wait for stdout to flush *)
           match%bind perform state public_key work with
@@ -319,14 +321,14 @@ module Make (Inputs : Intf.Inputs_intf) :
               emit_proof_metrics result.metrics
                 (Work.Result.transactions result)
                 logger ;
-              [%log info] "Submitted completed SNARK work $work_ids to $address"
-                ~metadata:
-                  [ ("address", `String (Host_and_port.to_string daemon_address))
-                  ; ( "work_ids"
-                    , Transaction_snark_work.Statement.compact_json
-                        (One_or_two.map (Work.Spec.instances work)
-                           ~f:Work.Single.Spec.statement ) )
-                  ] ;
+              (* [%log info] "Submitted completed SNARK work $work_ids to $address"
+               *   ~metadata:
+               *     [ ("address", `String (Host_and_port.to_string daemon_address))
+               *     ; ( "work_ids"
+               *       , Transaction_snark_work.Statement.compact_json
+               *           (One_or_two.map (Work.Spec.instances work)
+               *              ~f:Work.Single.Spec.statement ) )
+               *     ] ; *)
               let rec submit_work () =
                 match%bind
                   dispatch Rpcs_versioned.Submit_work.Latest.rpc
