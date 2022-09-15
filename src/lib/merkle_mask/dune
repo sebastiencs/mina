@@ -23,6 +23,9 @@
    visualization
    mina_stdlib
    direction
+   ;; viable systems
+   mina_tree
+   bin_prot.shape
  )
  (preprocess
   (pps

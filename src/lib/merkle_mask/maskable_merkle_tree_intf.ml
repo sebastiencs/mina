@@ -13,6 +13,8 @@ module type S = sig
      - writes to the parent notify the child mask
   *)
 
+  (* val register_mask : t -> t -> t *)
+
   val register_mask : t -> unattached_mask -> attached_mask
 
   (** raises an exception if mask is not registered *)
@@ -39,7 +41,7 @@ module type S = sig
   *)
   val remove_and_reparent_exn : t -> attached_mask -> unit
 
-  module Debug : sig
-    val visualize : filename:string -> unit
-  end
+  (* module Debug : sig *)
+  (*   val visualize : filename:string -> unit *)
+  (* end *)
 end

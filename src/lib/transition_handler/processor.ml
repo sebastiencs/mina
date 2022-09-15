@@ -316,7 +316,7 @@ let run ~context:(module Context : CONTEXT) ~verifier ~trust_system
                   match subsequent_callback_action with
                   | `Ledger_catchup decrement_signal ->
                       if Ivar.is_full decrement_signal then
-                        [%log error] "Ivar.fill bug is here!" ;
+                        [%log error] "Ivar.fill bug is here 444!" ;
                       Ivar.fill decrement_signal ()
                   | `Catchup_scheduler ->
                       () )

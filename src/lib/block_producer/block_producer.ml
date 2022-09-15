@@ -40,7 +40,7 @@ end = struct
     match t.task with
     | Some (ivar, _) ->
         if Ivar.is_full ivar then
-          [%log' error (Logger.create ())] "Ivar.fill bug is here!" ;
+          [%log' error (Logger.create ())] "Ivar.fill bug is here MMM !" ;
         Ivar.fill ivar () ;
         t.task <- None
     | None ->
@@ -68,7 +68,7 @@ let lift_sync f =
   Interruptible.uninterruptible
     (Deferred.create (fun ivar ->
          if Ivar.is_full ivar then
-           [%log' error (Logger.create ())] "Ivar.fill bug is here!" ;
+           [%log' error (Logger.create ())] "Ivar.fill bug is here NNN !" ;
          Ivar.fill ivar (f ()) ) )
 
 module Singleton_scheduler : sig
