@@ -119,16 +119,15 @@ let protocol_states_for_root_scan_state t =
 
 let best_tip t = find_exn t t.best_tip
 
-let close ~loc t =
+let close ~loc _t =
+  let _loc = loc in
   Mina_metrics.(Gauge.set Transition_frontier.active_breadcrumbs 0.0) ;
-  ignore
-    ( Ledger.Maskable.unregister_mask_exn ~loc ~grandchildren:`Recursive
-        (Breadcrumb.mask (root t))
-      : Ledger.unattached_mask )
+  ignore ()
 
 let create ~context:(module Context : CONTEXT) ~root_data ~root_ledger
     ~consensus_local_state ~max_length ~persistent_root_instance
     ~time_controller =
+  Printf.eprintf "MY_LOG.FULL_FRONTIER.CREATE\n%!" ;
   let open Context in
   let open Root_data in
   let transition_receipt_time = None in
@@ -149,6 +148,7 @@ let create ~context:(module Context : CONTEXT) ~root_data ~root_ledger
   let root_blockchain_state_ledger_hash =
     Blockchain_state.snarked_ledger_hash root_blockchain_state
   in
+  Printf.eprintf "MY_LOG.FULL_FRONTIER.CREATE1\n%!" ;
   assert (
     Frozen_ledger_hash.equal
       (Frozen_ledger_hash.of_ledger_hash

@@ -508,14 +508,14 @@ struct
             let open Mina_base in
             let open Option.Let_syntax in
             let%bind ledger = t.best_tip_ledger () in
-            if Deferred.is_determined (Base_ledger.detached_signal ledger) then
-              None
-            else
-              let%bind loc =
-                Account_id.create prover Token_id.default
-                |> Base_ledger.location_of_account ledger
-              in
-              Base_ledger.get ledger loc
+            (* if Deferred.is_determined (Base_ledger.detached_signal ledger) then
+             *   None
+             * else *)
+            let%bind loc =
+              Account_id.create prover Token_id.default
+              |> Base_ledger.location_of_account ledger
+            in
+            Base_ledger.get ledger loc
           in
           let prover_account_exists = Option.is_some account_opt in
           let prover_permitted_to_receive =

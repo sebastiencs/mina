@@ -10,6 +10,7 @@
    async_kernel
    base.caml
    base
+   bin_prot.shape
    sexplib0
    core_kernel
    core
@@ -38,6 +39,7 @@
    transaction_snark_tests
    transaction_snark_scan_state
    sgn
+   stdio
    mina_base
    mina_transaction
    mina_transaction_logic

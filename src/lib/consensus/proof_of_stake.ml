@@ -300,7 +300,7 @@ module Make_str (A : Wire_types.Concrete) = struct
             | Ledger_db ledger ->
                 Mina_ledger.(
                   Sparse_ledger.of_any_ledger
-                  @@ Ledger.Any_ledger.cast (module Ledger.Db) ledger)
+                  @@ Ledger.Any_ledger.cast_database_to_mask (module Ledger.Db) ledger)
         end
 
         type t =
@@ -2855,7 +2855,7 @@ module Make_str (A : Wire_types.Concrete) = struct
                 ~metadata:[ ("target_ledger_hash", ledger_hash_json) ] ;
               let sparse_ledger =
                 Mina_ledger.Sparse_ledger.of_any_ledger
-                  (Mina_ledger.Ledger.Any_ledger.cast
+                  (Mina_ledger.Ledger.Any_ledger.cast_database_to_mask
                      (module Mina_ledger.Ledger.Db)
                      ledger )
               in
