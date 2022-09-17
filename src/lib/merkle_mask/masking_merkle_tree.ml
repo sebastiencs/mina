@@ -355,7 +355,7 @@ module Make (Inputs : Inputs_intf.S) = struct
           Some hash
       | None -> (
           try
-            Printf.eprintf "inner hash here\n%!" ;
+            (* Printf.eprintf "inner hash here\n%!" ; *)
             let hash = Base.get_inner_hash_at_addr_exn (get_parent t) addr in
             Some hash
           with _ -> None )
