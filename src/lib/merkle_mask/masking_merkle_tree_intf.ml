@@ -70,7 +70,7 @@ module type S = sig
     (* val get_parent : t -> t *)
 
     (** get mask parent *)
-    val get_parent : t -> parent
+    (* val get_parent : t -> parent *)
 
     (** called when parent sets an account; update local state *)
     (* val parent_set_notify : t -> account -> unit *)
@@ -92,5 +92,5 @@ module type S = sig
   (* val set_parent : unattached -> t -> Attached.t *)
 
   (** tell mask about parent *)
-  val set_parent : unattached -> parent -> Attached.t
+  (* val set_parent : unattached -> parent -> Attached.t *)
 end

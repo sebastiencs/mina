@@ -38,7 +38,7 @@ module Make (Inputs : Inputs_intf) = struct
     ignore (Account.bin_write_t buf ~pos:0 account : int) ;
     Bigstring.to_bytes buf
 
-  type t = Mina_tree.mask
+  (* type t = Mina_tree.mask *)
 
   (* module Node = struct *)
   (*   type t = Mask.Attached.t *)
@@ -236,10 +236,10 @@ module Make (Inputs : Inputs_intf) = struct
   (*       Mask.Attached.unset_parent ~trigger_signal:trigger_detach_signal ~loc *)
   (*         mask *)
 
-  (** a set calls the Base implementation set, notifies registered mask childen *)
-  let set t location account =
-    let location = location_to_rust location in
-    Rust.mask_set t location (account_to_rust account)
+  (* (\** a set calls the Base implementation set, notifies registered mask childen *\) *)
+  (* let set t location account = *)
+  (*   let location = location_to_rust location in *)
+  (*   Rust.mask_set t location (account_to_rust account) *)
 
   (* let set t location account = *)
   (*   Base.set t location account ; *)
@@ -278,31 +278,31 @@ module Make (Inputs : Inputs_intf) = struct
   (*           List.iter accounts ~f:(fun account -> *)
   (*               Mask.Attached.parent_set_notify mask account ) ) *)
 
-  let set_batch t locations_and_accounts =
-    let accounts =
-      List.map locations_and_accounts ~f:(fun (location, account) ->
-          (location_to_rust location, account_to_rust account) )
-    in
-    Rust.mask_set_batch_accounts t accounts
+  (* let set_batch t locations_and_accounts = *)
+  (*   let accounts = *)
+  (*     List.map locations_and_accounts ~f:(fun (location, account) -> *)
+  (*         (location_to_rust location, account_to_rust account) ) *)
+  (*   in *)
+  (*   Rust.mask_set_batch_accounts t accounts *)
 
   (* let set_batch t locations_and_accounts = *)
   (*   Base.set_batch t locations_and_accounts ; *)
   (*   batch_notify_mask_children t (List.map locations_and_accounts ~f:snd) *)
 
-  let set_batch_accounts t addresses_and_accounts =
-    let accounts =
-      List.map addresses_and_accounts ~f:(fun (addr, account) ->
-          (Addr.to_string addr, account_to_rust account) )
-    in
-    Rust.mask_set_batch_accounts t accounts
+  (* let set_batch_accounts t addresses_and_accounts = *)
+  (*   let accounts = *)
+  (*     List.map addresses_and_accounts ~f:(fun (addr, account) -> *)
+  (*         (Addr.to_string addr, account_to_rust account) ) *)
+  (*   in *)
+  (*   Rust.mask_set_batch_accounts t accounts *)
 
   (* let set_batch_accounts t addresses_and_accounts = *)
   (*   Base.set_batch_accounts t addresses_and_accounts ; *)
   (*   batch_notify_mask_children t (List.map addresses_and_accounts ~f:snd) *)
 
-  let set_all_accounts_rooted_at_exn t addr accounts =
-    let accounts = List.map accounts ~f:account_to_rust in
-    Rust.mask_set_all_accounts_rooted_at t (Addr.to_string addr) accounts
+  (* let set_all_accounts_rooted_at_exn t addr accounts = *)
+  (*   let accounts = List.map accounts ~f:account_to_rust in *)
+  (*   Rust.mask_set_all_accounts_rooted_at t (Addr.to_string addr) accounts *)
 
   (* let set_all_accounts_rooted_at_exn t address accounts = *)
   (*   Base.set_all_accounts_rooted_at_exn t address accounts ; *)
