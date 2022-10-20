@@ -34,7 +34,8 @@ module type S = sig
 
   (** The type of the witness for a base ledger exposed here so that it can
    * be easily accessed from outside this module *)
-  type witness [@@deriving sexp_of]
+  type witness
+  (* type witness [@@deriving sexp_of] *)
 
   module type Base_intf =
     Base_ledger_intf.S
@@ -100,6 +101,7 @@ module Make_base (Inputs : Inputs_intf) :
    * In the future, this should be a `ppx`.
    *)
   module M : Base_intf with type t = witness = struct
+    (* type t *)
     type t = witness [@@deriving sexp_of]
 
     let t_of_sexp _ = failwith "t_of_sexp unimplemented"
