@@ -23,6 +23,9 @@
    visualization
    non_empty_list
    direction
+   ;; viable systems
+   mina_tree
+   bin_prot.shape
  )
  (preprocess
   (pps

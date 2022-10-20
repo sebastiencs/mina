@@ -65,13 +65,15 @@ module type S = sig
         [detached_signal] for [t] will be resolved. This should only be set to
         [false] when the mask will be reparented.
     *)
-    val unset_parent : ?trigger_signal:bool -> loc:string -> t -> unattached
+    (* val unset_parent : ?trigger_signal:bool -> loc:string -> t -> unattached *)
+
+    (* val get_parent : t -> t *)
 
     (** get mask parent *)
     val get_parent : t -> parent
 
     (** called when parent sets an account; update local state *)
-    val parent_set_notify : t -> account -> unit
+    (* val parent_set_notify : t -> account -> unit *)
 
     val copy : t -> t
 
@@ -86,6 +88,8 @@ module type S = sig
       val current_location : t -> Location.t option
     end
   end
+
+  (* val set_parent : unattached -> t -> Attached.t *)
 
   (** tell mask about parent *)
   val set_parent : unattached -> parent -> Attached.t
