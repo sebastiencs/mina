@@ -89,6 +89,7 @@ module type S = sig
     end
   end
 
+  val set_parent : unattached -> parent -> Attached.t
   (* val set_parent : unattached -> t -> Attached.t *)
 
   (** tell mask about parent *)

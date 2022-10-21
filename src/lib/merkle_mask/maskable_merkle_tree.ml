@@ -40,6 +40,8 @@ module Make (Inputs : Inputs_intf) = struct
 
   (* type t = Mina_tree.mask *)
 
+  (* type t = Mina_tree.mask *)
+
   (* module Node = struct *)
   (*   type t = Mask.Attached.t *)
 
@@ -152,7 +154,27 @@ module Make (Inputs : Inputs_intf) = struct
   (*         Node (summary, List.map masks ~f:(_crawl (module Mask.Attached))) *)
   (* end *)
 
-  let register_mask t mask = Rust.mask_register_mask t mask
+  (* let register_mask (m : t) (mask : t) : t = *)
+  (*   (\* let register_mask (m : t) (mask : Mask.unattached) : Mask.Attached.t = *\) *)
+  (*   (\* failwith "t_register_mask not implemented" *\) *)
+  (*   Rust.mask_register_mask m mask *)
+
+  external mask_register_mask : t -> Mask.unattached -> Mask.Attached.t
+    = "rust_mask_register_mask"
+
+  external mask_unregister_mask :
+    Mask.Attached.t -> Mina_tree.rust_grandchildren -> Mask.unattached
+    = "rust_mask_unregister_mask"
+
+  (* external mask_remove_and_reparent : t -> Mask.Attached.t -> unit *)
+  external mask_remove_and_reparent : t -> unit
+    = "rust_mask_remove_and_reparent"
+
+  (* let register_mask _m (_mask : t) : t = *)
+  let register_mask (m : t) (mask : Mask.unattached) : Mask.Attached.t =
+    (* failwith "t_register_mask not implemented" *)
+    mask_register_mask m mask
+  (* Rust.mask_register_mask m mask *)
 
   (* let attached_mask = Mask.set_parent mask t in *)
   (* List.iter (Uuid.Table.data registered_masks) ~f:(fun ms -> *)
@@ -166,9 +188,21 @@ module Make (Inputs : Inputs_intf) = struct
   (* Uuid.Table.add_multi registered_masks ~key:(get_uuid t) ~data:attached_mask ; *)
   (* attached_mask *)
 
-  let unregister_mask_exn ?(grandchildren = `Check) ~loc mask =
-    let () = loc in
-    Rust.mask_unregister_mask mask grandchildren
+  let behavior_to_rust behavior : Mina_tree.rust_grandchildren =
+    match behavior with
+    | `Check ->
+        `Check
+    | `Recursive ->
+        `Recursive
+    | `I_promise_I_am_reparenting_this_mask ->
+        `I_promise_I_am_reparenting_this_mask
+
+  (* [ `Check | `Recursive | `I_promise_I_am_reparenting_this_mask ] *)
+
+  let unregister_mask_exn ?(grandchildren = `Check) ~(loc : string)
+      (mask : Mask.Attached.t) : Mask.unattached =
+    let _ = loc in
+    mask_unregister_mask mask (behavior_to_rust grandchildren)
 
   (* let unregister_mask_exn ?(grandchildren = `Check) ~loc (mask : Mask.Attached.t) *)
   (*     : Mask.unattached = *)
@@ -250,7 +284,8 @@ module Make (Inputs : Inputs_intf) = struct
   (*       List.iter masks ~f:(fun mask -> *)
   (*           Mask.Attached.parent_set_notify mask account ) *)
 
-  let remove_and_reparent_exn t _t_as_mask = Rust.mask_remove_and_reparent t
+  let remove_and_reparent_exn (m : t) (_t_as_mask : Mask.Attached.t) =
+    mask_remove_and_reparent m
 
   (* let remove_and_reparent_exn t t_as_mask = *)
   (*   let parent = Mask.Attached.get_parent t_as_mask in *)
