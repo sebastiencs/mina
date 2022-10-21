@@ -174,7 +174,7 @@ module Ledger_inner = struct
   end)
 
   include Mask.Attached
-  module Debug = Maskable.Debug
+  (* module Debug = Maskable.Debug *)
 
   type maskable_ledger = t
 

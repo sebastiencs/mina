@@ -140,6 +140,7 @@ module Make (Inputs : Inputs_intf.S) = struct
 
   module Attached = struct
     (* type parent = Base.t [@@deriving sexp] *)
+    (* type parent = Base.t *)
     type parent = t
 
     (* type t = unattached [@@deriving sexp] *)
@@ -1055,7 +1056,17 @@ module Make (Inputs : Inputs_intf.S) = struct
     (* let location_of_sexp = Location.t_of_sexp *)
   end
 
-  let set_parent t parent = Rust.mask_set_parent t parent
+  (* val set_parent : unattached -> t -> Attached.t *)
+
+  (* val set_parent : unattached -> parent -> Attached.t *)
+
+  (* type parent *)
+
+  external mask_set_parent : unattached -> Base.t -> Attached.t
+    = "rust_mask_set_parent"
+
+  let set_parent _t _parent = failwith "ok"
+  (* mask_set_parent t parent *)
 
   (* assert (Result.is_error t.parent) ; *)
   (* assert (Option.is_none (Async.Ivar.peek t.detached_parent_signal)) ; *)
