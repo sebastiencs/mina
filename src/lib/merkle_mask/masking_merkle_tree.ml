@@ -193,7 +193,7 @@ module Make (Inputs : Inputs_intf.S) = struct
 
     (* let detached_signal t = Async.Ivar.read t.detached_parent_signal *)
 
-    let get_parent t = Rust.mask_get_parent t
+    (* let get_parent t = Rust.mask_get_parent t *)
 
     (* let get_parent ({ parent = opt; _ } as t) = *)
     (*   assert_is_attached t ; Result.ok_or_failwith opt *)
@@ -454,8 +454,8 @@ module Make (Inputs : Inputs_intf.S) = struct
 
     (* as for accounts, we see if we have it in the mask, else delegate to
        parent *)
-    let get_hash t addr =
-      Rust.mask_get_hash t (Addr.to_string addr) |> hash_from_rust |> Some
+    (* let get_hash t addr =
+     *   Rust.mask_get_hash t (Addr.to_string addr) |> hash_from_rust |> Some *)
 
     (* let get_hash t addr = *)
     (*   assert_is_attached t ; *)
@@ -1065,8 +1065,9 @@ module Make (Inputs : Inputs_intf.S) = struct
   external mask_set_parent : unattached -> Base.t -> Attached.t
     = "rust_mask_set_parent"
 
-  let set_parent _t _parent = failwith "ok"
-  (* mask_set_parent t parent *)
+  let set_parent t parent =
+    (* failwith "ok" *)
+    mask_set_parent t parent
 
   (* assert (Result.is_error t.parent) ; *)
   (* assert (Option.is_none (Async.Ivar.peek t.detached_parent_signal)) ; *)

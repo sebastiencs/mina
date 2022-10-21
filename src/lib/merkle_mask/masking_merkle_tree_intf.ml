@@ -50,8 +50,8 @@ module type S = sig
       Dangling_parent_reference of
         Uuid.t * (* Location where null was set*) string
 
-    (** get hash from mask, if present, else from its parent *)
-    val get_hash : t -> Addr.t -> hash option
+    (* (\** get hash from mask, if present, else from its parent *\)
+     * val get_hash : t -> Addr.t -> hash option *)
 
     (** commit all state to the parent, flush state locally *)
     val commit : t -> unit
