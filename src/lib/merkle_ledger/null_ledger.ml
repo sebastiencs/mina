@@ -6,6 +6,8 @@ module type Inputs_intf = sig
   module Location : Location_intf.S
 end
 
+module Rust = Mina_tree.Rust
+
 module Make (Inputs : Inputs_intf) : sig
   include
     Base_ledger_intf.S
@@ -37,7 +39,12 @@ end = struct
 
   module Addr = Location.Addr
 
-  let create ~depth () = { uuid = Uuid_unix.create (); depth }
+  external mask_create : int -> t = "rust_mask_create"
+
+  let create ~depth () =
+    let rust_mask = mask_create depth in
+    rust_mask
+  (* { uuid = Uuid_unix.create (); depth } *)
 
   let remove_accounts_exn _t keys =
     if List.is_empty keys then ()
