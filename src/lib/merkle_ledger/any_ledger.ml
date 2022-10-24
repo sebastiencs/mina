@@ -52,6 +52,9 @@ module type S = sig
 
   val cast : (module Base_intf with type t = 'a) -> 'a -> witness
 
+  val cast_database_to_mask :
+    (module Base_intf with type t = 'a) -> 'a -> witness
+
   module M : Base_intf with type t = witness
 end
 
@@ -89,7 +92,23 @@ module Make_base (Inputs : Inputs_intf) :
 
   type witness = T : (module Base_intf with type t = 't) * 't -> witness
 
-  let cast (m : (module Base_intf with type t = 'a)) (t : 'a) = T (m, t)
+  (* external mask_create : int -> t = "rust_mask_create" *)
+  (* val cast : (module Base_intf with type t = 'a) -> 'a -> witness *)
+  (* external rust_cast : (module Base_intf with type t = 'a) -> 'a -> witness *)
+  external rust_cast : 'a -> witness = "rust_cast"
+
+  external rust_cast_database_to_mask : 'a -> witness
+    = "rust_cast_database_to_mask"
+
+  let cast (_m : (module Base_intf with type t = 'a)) (t : 'a) = rust_cast t
+
+  let cast_database_to_mask (_m : (module Base_intf with type t = 'a)) (t : 'a)
+      =
+    rust_cast_database_to_mask t
+
+  let _cast2 (m : (module Base_intf with type t = 'a)) (t : 'a) = T (m, t)
+
+  (* let cast (m : (module Base_intf with type t = 'a)) (t : 'a) = T (m, t) *)
 
   let sexp_of_witness (T ((module B), t)) = B.sexp_of_t t
 
@@ -122,7 +141,24 @@ module Make_base (Inputs : Inputs_intf) :
 
     let merkle_path (T ((module Base), t)) = Base.merkle_path t
 
-    let merkle_root (T ((module Base), t)) = Base.merkle_root t
+    let hash_from_rust hash =
+      hash |> Bigstring.of_bytes |> Hash.bin_read_t ~pos_ref:(ref 0)
+
+    external mask2_merkle_root : 'a -> bytes = "rust_mask_merkle_root"
+
+    let merkle_root a =
+      Printf.eprintf "MY_LOG.ANY.MERKLE_ROOT\n%!" ;
+      let res = mask2_merkle_root a |> hash_from_rust in
+      (* let res = Base.merkle_root t in *)
+      Printf.eprintf "MY_LOG.ANY.MERKLE_ROOT2\n%!" ;
+      res
+
+    (* let merkle_root (T ((module Base), t)) =
+     *   Printf.eprintf "MY_LOG.ANY.MERKLE_ROOT\n%!" ;
+     *   let res = mask2_merkle_root t |> hash_from_rust in
+     *   (\* let res = Base.merkle_root t in *\)
+     *   Printf.eprintf "MY_LOG.ANY.MERKLE_ROOT2\n%!" ;
+     *   res *)
 
     let index_of_account_exn (T ((module Base), t)) =
       Base.index_of_account_exn t

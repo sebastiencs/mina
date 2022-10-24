@@ -487,7 +487,11 @@ module Make (Inputs : Inputs_intf.S) = struct
              ( account_location_from_rust addr
              , Option.map account ~f:account_from_rust ) )
 
-    let detached_signal _t = failwith "detached_signal: not implemented"
+    let detached_signal _t = Async.Ivar.read (Async.Ivar.create ())
+
+    (* Printf.eprintf "MY_LOG.MERKLE_MASK.DETACHED_SIGNAL\n%!" *)
+
+    (* let detached_signal _t = failwith "detached_signal: not implemented" *)
 
     (* let get_batch_exn t locations = *)
     (*   assert_is_attached t ; *)

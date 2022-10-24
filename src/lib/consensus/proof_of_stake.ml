@@ -286,7 +286,9 @@ module Data = struct
           | Ledger_db ledger ->
               Mina_ledger.(
                 Sparse_ledger.of_any_ledger
-                @@ Ledger.Any_ledger.cast (module Ledger.Db) ledger)
+                @@ Ledger.Any_ledger.cast_database_to_mask
+                     (module Ledger.Db)
+                     ledger)
       end
 
       type t =
@@ -2633,7 +2635,8 @@ module Hooks = struct
                             Some
                               (Ok
                                  ( Mina_ledger.Sparse_ledger.of_any_ledger
-                                 @@ Mina_ledger.Ledger.Any_ledger.cast
+                                 @@ Mina_ledger.Ledger.Any_ledger
+                                    .cast_database_to_mask
                                       (module Mina_ledger.Ledger.Db)
                                       ledger ) )
                           else None )
