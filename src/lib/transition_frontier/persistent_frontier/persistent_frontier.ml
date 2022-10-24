@@ -251,7 +251,7 @@ module Instance = struct
                 ~f:(With_hash.of_data ~hash_data:Protocol_state.hashes)
           }
         ~root_ledger:
-          (Mina_ledger.Ledger.Any_ledger.cast
+          (Mina_ledger.Ledger.Any_ledger.cast_database_to_mask
              (module Mina_ledger.Ledger.Db)
              root_ledger )
         ~consensus_local_state ~max_length ~persistent_root_instance

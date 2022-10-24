@@ -179,17 +179,34 @@ module Ledger_inner = struct
   type maskable_ledger = t
 
   let of_database db =
-    Printf.eprintf "MY_LOG.MINA_LEDGER.LEDGER.of_database\n%!" ;
-    let casted = Any_ledger.cast (module Db) db in
-    let mask = Mask.create ~depth:(Db.depth db) () in
+    (* Printf.eprintf "MY_LOG.MINA_LEDGER.LEDGER.of_database\n%!" ; *)
+    (* let casted = Any_ledger.cast (module Db) db in *)
+    let depth = Db.depth db in
+    let casted = Any_ledger.cast_database_to_mask (module Db) db in
+    let mask = Mask.create ~depth () in
+    (* let mask = Mask.create ~depth:(Db.depth db) () in *)
     Maskable.register_mask casted mask
 
   (* Mask.Attached.create () fails, can't create an attached mask directly
      shadow create in order to create an attached mask
   *)
   let create ?directory_name ~depth () =
-    Printf.eprintf "MY_LOG.MINA_LEDGER.LEDGER.create\n%!" ;
+    (* Printf.eprintf "MY_LOG.MINA_LEDGER.LEDGER.create\n%!" ; *)
     of_database (Db.create ?directory_name ~depth ())
+
+  (* let create_ephemeral_with_base ~depth () =
+   *   Printf.eprintf "MY_LOG.MINA_LEDGER.LEDGER.create_ephemeral_with_base\n%!" ;
+   *   let maskable = Null.create ~depth () in
+   *   let casted = Any_ledger.cast (module Null) maskable in
+   *   let parent = Mask.create ~depth () in
+   *   let parent_casted = Any_ledger.cast (module Null) parent in
+   *   let mask = Mask.create ~depth () in
+   *   (casted, Maskable.register_mask parent_casted mask)
+   *
+   * let create_ephemeral ~depth () =
+   *   Printf.eprintf "MY_LOG.MINA_LEDGER.LEDGER.create_ephemeral\n%!" ;
+   *   let _base, mask = create_ephemeral_with_base ~depth () in
+   *   mask *)
 
   let create_ephemeral_with_base ~depth () =
     Printf.eprintf "MY_LOG.MINA_LEDGER.LEDGER.create_ephemeral_with_base\n%!" ;
