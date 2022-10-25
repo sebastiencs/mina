@@ -134,12 +134,17 @@ module Make_base (Inputs : Inputs_intf) :
 
     module Addr = Location.Addr
 
-    let remove_accounts_exn (T ((module Base), t)) = Base.remove_accounts_exn t
+    let remove_accounts_exn (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.REMOVE_ACCOUNTS\n%!" ;
+      Base.remove_accounts_exn t
 
     let merkle_path_at_index_exn (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.MERKLE_PATH_AT_INDEX\n%!" ;
       Base.merkle_path_at_index_exn t
 
-    let merkle_path (T ((module Base), t)) = Base.merkle_path t
+    let merkle_path (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.MERKLE_PATH\n%!" ;
+      Base.merkle_path t
 
     let hash_from_rust hash =
       hash |> Bigstring.of_bytes |> Hash.bin_read_t ~pos_ref:(ref 0)
@@ -161,83 +166,140 @@ module Make_base (Inputs : Inputs_intf) :
      *   res *)
 
     let index_of_account_exn (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.INDEX_OF_ACCOUNT\n%!" ;
       Base.index_of_account_exn t
 
-    let set_at_index_exn (T ((module Base), t)) = Base.set_at_index_exn t
+    let set_at_index_exn (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.SET_AT_INDEX\n%!" ;
+      Base.set_at_index_exn t
 
-    let get_at_index_exn (T ((module Base), t)) = Base.get_at_index_exn t
+    let get_at_index_exn (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.GET_AT_INDEX\n%!" ;
+      Base.get_at_index_exn t
 
-    let set_batch (T ((module Base), t)) = Base.set_batch t
+    let set_batch (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.SET_BATCH\n%!" ;
+      Base.set_batch t
 
-    let set (T ((module Base), t)) = Base.set t
+    let set (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.SET\n%!" ;
+      Base.set t
 
-    let get (T ((module Base), t)) = Base.get t
+    let get (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.GET\n%!" ;
+      Base.get t
 
-    let get_batch (T ((module Base), t)) = Base.get_batch t
+    let get_batch (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.GET_BATCH\n%!" ;
+      Base.get_batch t
 
-    let get_uuid (T ((module Base), t)) = Base.get_uuid t
+    let get_uuid (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.GET_UUID\n%!" ;
+      Base.get_uuid t
 
-    let get_directory (T ((module Base), t)) = Base.get_directory t
+    let get_directory (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.GET_DIRECTORY\n%!" ;
+      Base.get_directory t
 
-    let last_filled (T ((module Base), t)) = Base.last_filled t
+    let last_filled (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.LAST_FILLED\n%!" ;
+      Base.last_filled t
 
-    let close (T ((module Base), t)) = Base.close t
+    let close (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.CLOSE\n%!" ;
+      Base.close t
 
     let get_or_create_account (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.GET_OR_CREATE_ACCOUNT\n%!" ;
       Base.get_or_create_account t
 
-    let location_of_account (T ((module Base), t)) = Base.location_of_account t
+    let location_of_account (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.LOCATION_OF_ACCOUNT\n%!" ;
+      Base.location_of_account t
 
     let location_of_account_batch (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.LOCATION_OF_ACCOUNT_BATCH\n%!" ;
       Base.location_of_account_batch t
 
-    let fold_until (T ((module Base), t)) = Base.fold_until t
+    let fold_until (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.FOLD_UNTIL\n%!" ;
+      Base.fold_until t
 
-    let accounts (T ((module Base), t)) = Base.accounts t
+    let accounts (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.ACCOUNTS\n%!" ;
+      Base.accounts t
 
-    let token_owner (T ((module Base), t)) tid = Base.token_owner t tid
+    let token_owner (T ((module Base), t)) tid =
+      Printf.eprintf "MY_LOG.ANY.TOKEN_OWNER\n%!" ;
+      Base.token_owner t tid
 
-    let tokens (T ((module Base), t)) pk = Base.tokens t pk
+    let tokens (T ((module Base), t)) pk =
+      Printf.eprintf "MY_LOG.ANY.TOKENS\n%!" ;
+      Base.tokens t pk
 
-    let token_owners (T ((module Base), t)) = Base.token_owners t
+    let token_owners (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.TOKEN_OWNERS\n%!" ;
+      Base.token_owners t
 
-    let iteri (T ((module Base), t)) = Base.iteri t
+    let iteri (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.ITERI\n%!" ;
+      Base.iteri t
 
     (* ignored_keys must be Base.Keys.Set.t, but that isn't necessarily the same as Keys.Set.t for the
        Keys passed to this functor; as long as we use the same Keys for all ledgers, this should work
     *)
     let foldi_with_ignored_accounts (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.FOLDI_WITH_IGNORED_ACCOUNTS\n%!" ;
       Base.foldi_with_ignored_accounts t
 
-    let foldi (T ((module Base), t)) = Base.foldi t
+    let foldi (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.FOLDI\n%!" ;
+      Base.foldi t
 
-    let to_list (T ((module Base), t)) = Base.to_list t
+    let to_list (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.TO_LIST\n%!" ;
+      Base.to_list t
 
-    let make_space_for (T ((module Base), t)) = Base.make_space_for t
+    let make_space_for (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.MAKE_SPACE_FOR\n%!" ;
+      Base.make_space_for t
 
     let get_all_accounts_rooted_at_exn (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.GET_ALL_ACCOUNTS_ROOTED_AT\n%!" ;
       Base.get_all_accounts_rooted_at_exn t
 
     let set_all_accounts_rooted_at_exn (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.SET_ALL_ACCOUNTS_ROOTED_AT\n%!" ;
       Base.set_all_accounts_rooted_at_exn t
 
-    let set_batch_accounts (T ((module Base), t)) = Base.set_batch_accounts t
+    let set_batch_accounts (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.SET_BATCH_ACCOUNTS\n%!" ;
+      Base.set_batch_accounts t
 
     let set_inner_hash_at_addr_exn (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.SET_INNER_HASH_AT_ADDR\n%!" ;
       Base.set_inner_hash_at_addr_exn t
 
     let get_inner_hash_at_addr_exn (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.GET_INNER_HASH_AT_ADDR\n%!" ;
       Base.get_inner_hash_at_addr_exn t
 
     let merkle_path_at_addr_exn (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.MERKLE_PATH_AT_ADDR\n%!" ;
       Base.merkle_path_at_addr_exn t
 
-    let num_accounts (T ((module Base), t)) = Base.num_accounts t
+    let num_accounts (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.NUM_ACCOUNTS\n%!" ;
+      Base.num_accounts t
 
     (* This better be the same depth inside Base or you're going to have a bad
      * time *)
-    let depth (T ((module Base), t)) = Base.depth t
+    let depth (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.DEPTH\n%!" ;
+      Base.depth t
 
-    let detached_signal (T ((module Base), t)) = Base.detached_signal t
+    let detached_signal (T ((module Base), t)) =
+      Printf.eprintf "MY_LOG.ANY.DETACHED\n%!" ;
+      Base.detached_signal t
   end
 end
