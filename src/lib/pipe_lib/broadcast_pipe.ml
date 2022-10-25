@@ -38,7 +38,7 @@ let create a =
                Deferred.ignore_m @@ Pipe.downstream_flushed p )
          in
          if Ivar.is_full !downstream_flushed_v then
-           [%log' error (Logger.create ())] "Ivar.fill bug is here!" ;
+           [%log' error (Logger.create ())] "Ivar.fill bug is here 555!" ;
          Ivar.fill !downstream_flushed_v () ;
          Deferred.unit ) ) ;
   (t, t)

@@ -77,27 +77,27 @@ let rec determine_outcome :
             match r with
             | `Valid r ->
                 if Ivar.is_full elt.res then
-                  [%log' error (Logger.create ())] "Ivar.fill bug is here!" ;
+                  [%log' error (Logger.create ())] "Ivar.fill bug is here 666!" ;
                 Ivar.fill elt.res (Ok (Ok r)) ;
                 None
             | `Invalid_keys keys ->
                 if Ivar.is_full elt.res then
-                  [%log' error (Logger.create ())] "Ivar.fill bug is here!" ;
+                  [%log' error (Logger.create ())] "Ivar.fill bug is here 777!" ;
                 Ivar.fill elt.res (Ok (Error (`Invalid_keys keys))) ;
                 None
             | `Invalid_signature keys ->
                 if Ivar.is_full elt.res then
-                  [%log' error (Logger.create ())] "Ivar.fill bug is here!" ;
+                  [%log' error (Logger.create ())] "Ivar.fill bug is here 888!" ;
                 Ivar.fill elt.res (Ok (Error (`Invalid_signature keys))) ;
                 None
             | `Invalid_proof ->
                 if Ivar.is_full elt.res then
-                  [%log' error (Logger.create ())] "Ivar.fill bug is here!" ;
+                  [%log' error (Logger.create ())] "Ivar.fill bug is here 999!" ;
                 Ivar.fill elt.res (Ok (Error `Invalid_proof)) ;
                 None
             | `Missing_verification_key keys ->
                 if Ivar.is_full elt.res then
-                  [%log' error (Logger.create ())] "Ivar.fill bug is here!" ;
+                  [%log' error (Logger.create ())] "Ivar.fill bug is here AAA!" ;
                 Ivar.fill elt.res (Ok (Error (`Missing_verification_key keys))) ;
                 None
             | `Potentially_invalid new_hint ->
@@ -110,7 +110,7 @@ let rec determine_outcome :
           return ()
       | [ ({ res; _ }, _) ] ->
           if Ivar.is_full res then
-            [%log' error (Logger.create ())] "Ivar.fill bug is here!" ;
+            [%log' error (Logger.create ())] "Ivar.fill bug is here BBB!" ;
           Ivar.fill res (Ok (Error `Invalid_proof)) ;
           (* If there is a potentially invalid proof in this batch of size 1, then
              that proof is itself invalid. *)

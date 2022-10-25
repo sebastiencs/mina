@@ -2654,7 +2654,7 @@ module Hooks = struct
                     ]
                   "Failed to serve epoch ledger query with hash $ledger_hash \
                    from $peer: $error" ) ;
-            if Ivar.is_full ivar then [%log error] "Ivar.fill bug is here!" ;
+            if Ivar.is_full ivar then [%log error] "Ivar.fill bug is here 111!" ;
             Ivar.fill ivar response )
     end]
 
