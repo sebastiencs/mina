@@ -211,7 +211,7 @@ module Snark_worker = struct
           | Ok () ->
               [%log info] "Snark worker process died" ;
               if Ivar.is_full kill_ivar then
-                [%log error] "Ivar.fill bug is here!" ;
+                [%log error] "Ivar.fill bug is here 222!" ;
               Ivar.fill kill_ivar () ;
               Deferred.unit
           | Error (`Exit_non_zero non_zero_error) ->
@@ -265,7 +265,7 @@ module Snark_worker = struct
             ]
           "Started snark worker process with pid: $snark_worker_pid" ;
         if Ivar.is_full process_ivar then
-          [%log' error t.config.logger] "Ivar.fill bug is here!" ;
+          [%log' error t.config.logger] "Ivar.fill bug is here 333!" ;
         Ivar.fill process_ivar snark_worker_process
     | `Off _ ->
         [%log' info t.config.logger]
