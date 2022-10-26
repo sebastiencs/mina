@@ -501,6 +501,9 @@ module T = struct
   let apply_transaction_and_get_statement ~constraint_constants ledger
       (pending_coinbase_stack_state : Stack_state_with_init_stack.t) s
       txn_state_view =
+    let () =
+      Core.Printf.eprintf "MY_LOG.APPLY_TRANSACTION_AND_GET_STATEMENT\n%!"
+    in
     let open Result.Let_syntax in
     (*TODO: check fee_excess as a result of applying the txns matches with this*)
     let%bind fee_excess =
@@ -600,6 +603,7 @@ module T = struct
               (Staged_ledger_error.Mismatched_statuses
                  ({ With_status.data = s; status }, got_status) )
     in
+    Core.Printf.eprintf "MY_LOG.APPLY_TRANSACTION_AND_GET_STATEMENT.SUCCESS\n%!" ;
     ( { Scan_state.Transaction_with_witness.transaction_with_info = applied_txn
       ; state_hash = state_and_body_hash
       ; ledger_witness

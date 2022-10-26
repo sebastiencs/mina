@@ -2043,20 +2043,24 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
     Or_error.map
       ( match t with
       | Command (Signed_command txn) ->
+          Printf.eprintf "MY_LOG.APPLY_TRANSACTION.SIGNED_COMMAND\n%!" ;
           Or_error.map
             (apply_user_command_unchecked ~constraint_constants ~txn_global_slot
                ledger txn ) ~f:(fun applied ->
               Transaction_applied.Varying.Command (Signed_command applied) )
       | Command (Zkapp_command txn) ->
+          Printf.eprintf "MY_LOG.APPLY_TRANSACTION.ZKAPP_COMMAND\n%!" ;
           Or_error.map
             (apply_zkapp_command_unchecked ~state_view:txn_state_view
                ~constraint_constants ledger txn ) ~f:(fun (applied, _) ->
               Transaction_applied.Varying.Command (Zkapp_command applied) )
       | Fee_transfer t ->
+          Printf.eprintf "MY_LOG.APPLY_TRANSACTION.FREE_TRANSFER\n%!" ;
           Or_error.map
             (apply_fee_transfer ~constraint_constants ~txn_global_slot ledger t)
             ~f:(fun applied -> Transaction_applied.Varying.Fee_transfer applied)
       | Coinbase t ->
+          Printf.eprintf "MY_LOG.APPLY_TRANSACTION.COINBASE\n%!" ;
           Or_error.map
             (apply_coinbase ~constraint_constants ~txn_global_slot ledger t)
             ~f:(fun applied -> Transaction_applied.Varying.Coinbase applied) )
