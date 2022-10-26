@@ -134,20 +134,54 @@ module Make_base (Inputs : Inputs_intf) :
 
     module Addr = Location.Addr
 
+    let account_id_to_rust account_id =
+      let buf =
+        Bigstring.create (Account_id.Stable.Latest.bin_size_t account_id)
+      in
+      ignore (Account_id.Stable.Latest.bin_write_t buf ~pos:0 account_id : int) ;
+      Bigstring.to_bytes buf
+
+    let account_from_rust account =
+      Account.bin_read_t (Bigstring.of_bytes account) ~pos_ref:(ref 0)
+
+    let hash_from_rust hash =
+      hash |> Bigstring.of_bytes |> Hash.bin_read_t ~pos_ref:(ref 0)
+
+    let location_to_rust location =
+      Location.to_path_exn location |> Addr.to_string
+
+    let path_from_rust path =
+      match path with
+      | `Left hash ->
+          `Left (hash_from_rust hash)
+      | `Right hash ->
+          `Right (hash_from_rust hash)
+
     let remove_accounts_exn (T ((module Base), t)) =
       Printf.eprintf "MY_LOG.ANY.REMOVE_ACCOUNTS\n%!" ;
       Base.remove_accounts_exn t
 
-    let merkle_path_at_index_exn (T ((module Base), t)) =
+    external mask_merkle_path_at_index : 'a -> int -> 'b list
+      = "rust_mask_merkle_path_at_index"
+
+    let merkle_path_at_index_exn m index =
       Printf.eprintf "MY_LOG.ANY.MERKLE_PATH_AT_INDEX\n%!" ;
-      Base.merkle_path_at_index_exn t
+      mask_merkle_path_at_index m index |> List.map ~f:path_from_rust
 
-    let merkle_path (T ((module Base), t)) =
+    (* let merkle_path_at_index_exn (T ((module Base), t)) =
+     *   Printf.eprintf "MY_LOG.ANY.MERKLE_PATH_AT_INDEX\n%!" ;
+     *   Base.merkle_path_at_index_exn t *)
+
+    external mask_merkle_path : 'a -> 'b -> 'c list = "rust_mask_merkle_path"
+
+    let merkle_path m location =
       Printf.eprintf "MY_LOG.ANY.MERKLE_PATH\n%!" ;
-      Base.merkle_path t
+      mask_merkle_path m (location_to_rust location)
+      |> List.map ~f:path_from_rust
 
-    let hash_from_rust hash =
-      hash |> Bigstring.of_bytes |> Hash.bin_read_t ~pos_ref:(ref 0)
+    (* let merkle_path (T ((module Base), t)) =
+     *   Printf.eprintf "MY_LOG.ANY.MERKLE_PATH\n%!" ;
+     *   Base.merkle_path t *)
 
     external mask2_merkle_root : 'a -> bytes = "rust_mask_merkle_root"
 
@@ -158,13 +192,6 @@ module Make_base (Inputs : Inputs_intf) :
       Printf.eprintf "MY_LOG.ANY.MERKLE_ROOT2\n%!" ;
       res
 
-    (* let merkle_root (T ((module Base), t)) =
-     *   Printf.eprintf "MY_LOG.ANY.MERKLE_ROOT\n%!" ;
-     *   let res = mask2_merkle_root t |> hash_from_rust in
-     *   (\* let res = Base.merkle_root t in *\)
-     *   Printf.eprintf "MY_LOG.ANY.MERKLE_ROOT2\n%!" ;
-     *   res *)
-
     let index_of_account_exn (T ((module Base), t)) =
       Printf.eprintf "MY_LOG.ANY.INDEX_OF_ACCOUNT\n%!" ;
       Base.index_of_account_exn t
@@ -173,9 +200,15 @@ module Make_base (Inputs : Inputs_intf) :
       Printf.eprintf "MY_LOG.ANY.SET_AT_INDEX\n%!" ;
       Base.set_at_index_exn t
 
-    let get_at_index_exn (T ((module Base), t)) =
+    external mask_get_at_index : 'a -> int -> 'b = "rust_mask_get_at_index"
+
+    let get_at_index_exn m index =
       Printf.eprintf "MY_LOG.ANY.GET_AT_INDEX\n%!" ;
-      Base.get_at_index_exn t
+      mask_get_at_index m index |> account_from_rust
+
+    (* let get_at_index_exn (T ((module Base), t)) =
+     *   Printf.eprintf "MY_LOG.ANY.GET_AT_INDEX\n%!" ;
+     *   Base.get_at_index_exn t *)
 
     let set_batch (T ((module Base), t)) =
       Printf.eprintf "MY_LOG.ANY.SET_BATCH\n%!" ;
@@ -185,9 +218,16 @@ module Make_base (Inputs : Inputs_intf) :
       Printf.eprintf "MY_LOG.ANY.SET\n%!" ;
       Base.set t
 
-    let get (T ((module Base), t)) =
+    external mask_get : 'a -> 'b -> 'c option = "rust_mask_get"
+
+    let get m location =
       Printf.eprintf "MY_LOG.ANY.GET\n%!" ;
-      Base.get t
+      let addr = location_to_rust location in
+      mask_get m addr |> Option.map ~f:account_from_rust
+
+    (* let get (T ((module Base), t)) =
+     *   Printf.eprintf "MY_LOG.ANY.GET\n%!" ;
+     *   Base.get t *)
 
     let get_batch (T ((module Base), t)) =
       Printf.eprintf "MY_LOG.ANY.GET_BATCH\n%!" ;
@@ -213,9 +253,17 @@ module Make_base (Inputs : Inputs_intf) :
       Printf.eprintf "MY_LOG.ANY.GET_OR_CREATE_ACCOUNT\n%!" ;
       Base.get_or_create_account t
 
-    let location_of_account (T ((module Base), t)) =
+    (* let location_of_account (T ((module Base), t)) =
+     *   Printf.eprintf "MY_LOG.ANY.LOCATION_OF_ACCOUNT\n%!" ;
+     *   Base.location_of_account t *)
+
+    external mask_location_of_account : 'a -> 'b -> 'c option
+      = "rust_mask_location_of_account"
+
+    let location_of_account m account_id =
       Printf.eprintf "MY_LOG.ANY.LOCATION_OF_ACCOUNT\n%!" ;
-      Base.location_of_account t
+      mask_location_of_account m (account_id_to_rust account_id)
+      |> Option.map ~f:(fun addr -> Location.Account (Addr.of_string addr))
 
     let location_of_account_batch (T ((module Base), t)) =
       Printf.eprintf "MY_LOG.ANY.LOCATION_OF_ACCOUNT_BATCH\n%!" ;
@@ -252,13 +300,29 @@ module Make_base (Inputs : Inputs_intf) :
       Printf.eprintf "MY_LOG.ANY.FOLDI_WITH_IGNORED_ACCOUNTS\n%!" ;
       Base.foldi_with_ignored_accounts t
 
-    let foldi (T ((module Base), t)) =
-      Printf.eprintf "MY_LOG.ANY.FOLDI\n%!" ;
-      Base.foldi t
+    external mask_foldi : 'a -> ('b -> bytes -> unit) -> unit
+      = "rust_mask_foldi"
 
-    let to_list (T ((module Base), t)) =
+    let foldi m ~init ~f =
+      Printf.eprintf "MY_LOG.ANY.FOLDI\n%!" ;
+      let accum = ref init in
+      mask_foldi m (fun addr account ->
+          accum := f (Addr.of_string addr) !accum (account_from_rust account) ) ;
+      !accum
+
+    (* let foldi (T ((module Base), t)) =
+     *   Printf.eprintf "MY_LOG.ANY.FOLDI\n%!" ;
+     *   Base.foldi t *)
+
+    external mask_get_list : 'a -> bytes list = "rust_mask_get_list"
+
+    let to_list m =
       Printf.eprintf "MY_LOG.ANY.TO_LIST\n%!" ;
-      Base.to_list t
+      mask_get_list m |> List.map ~f:account_from_rust
+
+    (* let to_list (T ((module Base), t)) =
+     *   Printf.eprintf "MY_LOG.ANY.TO_LIST\n%!" ;
+     *   Base.to_list t *)
 
     let make_space_for (T ((module Base), t)) =
       Printf.eprintf "MY_LOG.ANY.MAKE_SPACE_FOR\n%!" ;
@@ -292,11 +356,17 @@ module Make_base (Inputs : Inputs_intf) :
       Printf.eprintf "MY_LOG.ANY.NUM_ACCOUNTS\n%!" ;
       Base.num_accounts t
 
+    external mask_depth : 'a -> int = "rust_mask_depth"
+
     (* This better be the same depth inside Base or you're going to have a bad
      * time *)
-    let depth (T ((module Base), t)) =
+    let depth m =
       Printf.eprintf "MY_LOG.ANY.DEPTH\n%!" ;
-      Base.depth t
+      mask_depth m
+
+    (* let depth (T ((module Base), t)) =
+     *   Printf.eprintf "MY_LOG.ANY.DEPTH\n%!" ;
+     *   Base.depth t *)
 
     let detached_signal (T ((module Base), t)) =
       Printf.eprintf "MY_LOG.ANY.DETACHED\n%!" ;
