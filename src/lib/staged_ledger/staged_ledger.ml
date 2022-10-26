@@ -591,13 +591,18 @@ module T = struct
     let%map () =
       match status with
       | None ->
+          Core.Printf.eprintf
+            "MY_LOG.APPLY_TRANSACTION_AND_GET_STATEMENT.NONE\n%!" ;
           return ()
       | Some status ->
           (* Validate that command status matches. *)
           let got_status =
             Ledger.Transaction_applied.transaction_status applied_txn
           in
-          if Transaction_status.equal status got_status then return ()
+          if Transaction_status.equal status got_status then (
+            Core.Printf.eprintf
+              "MY_LOG.APPLY_TRANSACTION_AND_GET_STATEMENT.EQUAL\n%!" ;
+            return () )
           else
             Deferred.Result.fail
               (Staged_ledger_error.Mismatched_statuses
