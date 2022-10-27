@@ -472,10 +472,7 @@ module Make (Inputs : Inputs_intf) :
   (*       |> Sequence.map ~f:(fun i -> get_at_index_exn t i) *)
 
   let iteri (t : t) ~(f : int -> Account.t -> unit) =
-    (* TODO *)
-    let _f = f in
-    let f _x _y = () in
-    Rust.database_iter t f
+    Rust.database_iter t (fun index bytes -> f index (account_from_rust bytes))
   (* Sequence.iteri (all_accounts t) ~f *)
 
   (** The tokens associated with each public key.
