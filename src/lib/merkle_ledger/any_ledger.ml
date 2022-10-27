@@ -352,9 +352,15 @@ module Make_base (Inputs : Inputs_intf) :
       Printf.eprintf "MY_LOG.ANY.MERKLE_PATH_AT_ADDR\n%!" ;
       Base.merkle_path_at_addr_exn t
 
-    let num_accounts (T ((module Base), t)) =
+    external mask_num_accounts : 'a -> int = "rust_mask_num_accounts"
+
+    let num_accounts m =
       Printf.eprintf "MY_LOG.ANY.NUM_ACCOUNTS\n%!" ;
-      Base.num_accounts t
+      mask_num_accounts m
+
+    (* let num_accounts (T ((module Base), t)) = *)
+    (*   Printf.eprintf "MY_LOG.ANY.NUM_ACCOUNTS\n%!" ; *)
+    (*   Base.num_accounts t *)
 
     external mask_depth : 'a -> int = "rust_mask_depth"
 
