@@ -866,6 +866,7 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
           in
           (* Charge the account creation fee. *)
           let%bind receiver_amount =
+            Printf.eprintf "Amount_insufficient_to_create_account HERE222\n%!";
             match receiver_location with
             | `Existing _ ->
                 return amount
