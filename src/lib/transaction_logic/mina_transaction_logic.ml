@@ -866,9 +866,11 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
           in
           (* Charge the account creation fee. *)
           let%bind receiver_amount =
-            Printf.eprintf "Amount_insufficient_to_create_account HERE222\n%!";
+            Printf.eprintf "Amount_insufficient_to_create_account HERE222\n%!" ;
             match receiver_location with
             | `Existing _ ->
+                Printf.eprintf
+                  "MY_LOG.apply_user_command_unchecked existing\n%!" ;
                 return amount
             | `New ->
                 (* Subtract the creation fee from the transaction amount. *)
@@ -877,6 +879,9 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
                        Transaction_status.Failure
                        .Amount_insufficient_to_create_account )
           in
+          Printf.eprintf
+            "MY_LOG.apply_user_command_unchecked receiver_amount=%d\n%!"
+            (Amount.to_int receiver_amount) ;
           let%map receiver_account =
             incr_balance receiver_account receiver_amount
           in
@@ -887,6 +892,7 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
             | `New ->
                 [ receiver ]
           in
+          Printf.eprintf "MY_LOG.apply_user_command_unchecked applied !\n%!" ;
           ( [ (receiver_location, receiver_account)
             ; (source_location, source_account)
             ]
