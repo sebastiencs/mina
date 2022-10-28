@@ -537,9 +537,11 @@ module T = struct
       Ledger.Transaction_applied.supply_increase applied_txn
       |> to_staged_ledger_or_error
     in
+    Core.Printf.eprintf "MY_LOG.apply_transaction_and_get_statement\n%!" ;
     let target_merkle_root =
       Ledger.merkle_root ledger |> Frozen_ledger_hash.of_ledger_hash
     in
+    Core.Printf.eprintf "MY_LOG.apply_transaction_and_get_statement2\n%!" ;
     ( applied_txn
     , { Transaction_snark.Statement.source =
           { ledger = source_merkle_root
