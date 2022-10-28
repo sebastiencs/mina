@@ -3387,13 +3387,13 @@ module Verification = struct
   module type S = sig
     val tag : tag
 
-    val verify : (t * Sok_message.t) list -> bool Async.Deferred.t
+    val verify : (t * Sok_message.t) list -> bool
 
     val id : Pickles.Verification_key.Id.t Lazy.t
 
     val verification_key : Pickles.Verification_key.t Lazy.t
 
-    val verify_against_digest : t -> bool Async.Deferred.t
+    val verify_against_digest : t -> bool
 
     val constraint_system_digests : (string * Md5_lib.t) list Lazy.t
   end
@@ -3550,7 +3550,7 @@ let verify (ts : (t * _) list) ~key =
       (module Statement.With_sok)
       key
       (List.map ts ~f:(fun ({ statement; proof }, _) -> (statement, proof)))
-  else Async.return false
+  else false
 
 let constraint_system_digests ~constraint_constants () =
   let digest = Tick.R1CS_constraint_system.digest in
@@ -3929,7 +3929,7 @@ struct
     then
       Proof.verify
         (List.map ts ~f:(fun ({ statement; proof }, _) -> (statement, proof)))
-    else Async.return false
+    else false
 
   let first_account_update
       (witness : Transaction_witness.Zkapp_command_segment_witness.t) =
