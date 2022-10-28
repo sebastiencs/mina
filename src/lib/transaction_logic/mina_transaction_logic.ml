@@ -563,6 +563,14 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
       ~(constraint_constants : Genesis_constants.Constraint_constants.t) action
       amount =
     let fee = constraint_constants.account_creation_fee in
+
+    Printf.eprintf "MY_LOG.TRANSACTION_LOGIC.sub_account_creation_fee %d\n%!"
+      (Fee.to_int fee) ;
+
+    if Ledger_intf.equal_account_state action `Added then
+      Printf.eprintf "MY_LOG.TRANSACTION_LOGIC.EQUAL_ADDED %d\n%!"
+        (Amount.to_int amount) ;
+
     if Ledger_intf.equal_account_state action `Added then
       error_opt
         (sprintf

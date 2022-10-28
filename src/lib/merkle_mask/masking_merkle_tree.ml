@@ -885,8 +885,7 @@ module Make (Inputs : Inputs_intf.S) = struct
     (*   |> List.map ~f:(fun (_, account) -> account) *)
 
     let iteri (t : t) ~(f : int -> Account.t -> unit) =
-      Rust.mask_iter t (fun index bytes ->
-          f index (account_from_rust bytes) )
+      Rust.mask_iter t (fun index bytes -> f index (account_from_rust bytes))
 
     (* let iteri t ~f = *)
     (*   let account_ids = accounts t |> Account_id.Set.to_list in *)
