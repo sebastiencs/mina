@@ -336,6 +336,8 @@ let%snarkydef step ~(logger : Logger.t)
 module Statement = struct
   type t = Protocol_state.Value.t
 
+  let get_bin_size_t () = Protocol_state.Value.Stable.Latest.bin_size_t
+
   let to_field_elements (t : t) : Tick.Field.t array =
     [| (Protocol_state.hashes t).state_hash |]
 end

@@ -896,6 +896,8 @@ module Make_str (_ : Wire_types.Concrete) = struct
         ( module struct
           type nonrec t = t
 
+          let get_bin_size_t () = failwith "unimplemented"
+
           let to_field_elements =
             let (Typ typ) = typ in
             fun x -> fst (typ.value_to_fields x)
@@ -1010,10 +1012,14 @@ module Make_str (_ : Wire_types.Concrete) = struct
     let module A_var = struct
       type t = a_var
 
+      let get_bin_size_t () = failwith "unimplemented"
+
       let to_field_elements = a_var_to_fields
     end in
     let module A_value = struct
       type t = a_value
+
+      let get_bin_size_t () = failwith "unimplemented"
 
       let to_field_elements = a_value_to_fields
     end in
@@ -1063,6 +1069,8 @@ module Make_str (_ : Wire_types.Concrete) = struct
     let T = Max_proofs_verified.eq in
     let module Value = struct
       type t = value
+
+      let get_bin_size_t () = failwith "unimplemented"
 
       let typ : (var, value) Impls.Step.Typ.t =
         match public_input with

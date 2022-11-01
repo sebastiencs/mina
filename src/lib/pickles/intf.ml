@@ -292,6 +292,8 @@ module type Statement = sig
   type t
 
   val to_field_elements : t -> field array
+
+  val get_bin_size_t : unit -> t Bin_prot.Size.sizer
 end
 
 module type Statement_var =

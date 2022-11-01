@@ -18,6 +18,17 @@ module Instance = struct
         -> t
 end
 
+(* app_state: Mina_state.Protocol_state.Value.Stable.Latest.t *)
+(* Plonk_verification_key_evals.Stable.Latest.t *)
+type 'app_state concrete =
+  ( Tock.Curve.Affine.t
+  , 'app_state
+  , Tock.Curve.Affine.t Vector.Vector_2.Stable.Latest.t
+  , Tick.Field.t Vector.Vector_16.Stable.Latest.t
+    Vector.Vector_2.Stable.Latest.t )
+  Types.Wrap.Messages_for_next_step_proof.t
+[@@deriving bin_io_unversioned]
+
 (* TODO: Just stick this in plonk_checks.ml *)
 module Plonk_checks = struct
   include Plonk_checks
@@ -276,15 +287,17 @@ let verify_heterogenous (ts : Instance.t list) =
                 , T t ) )
               plonk
             ->
+           let x =
+             Reduced_messages_for_next_proof_over_same_field.Step.prepare
+               ~dlog_plonk_index:key.commitments
+               { t.statement.messages_for_next_step_proof with app_state }
+           in
+           let concrete = (Obj.magic (Obj.repr x) : A_value.t concrete) in
+           let _size = bin_size_concrete (A_value.get_bin_size_t ()) concrete in
            let prepared_statement : _ Types.Wrap.Statement.In_circuit.t =
              { messages_for_next_step_proof =
                  Common.hash_messages_for_next_step_proof
-                   ~app_state:A_value.to_field_elements
-                   (Reduced_messages_for_next_proof_over_same_field.Step.prepare
-                      ~dlog_plonk_index:key.commitments
-                      { t.statement.messages_for_next_step_proof with
-                        app_state
-                      } )
+                   ~app_state:A_value.to_field_elements x
              ; proof_state =
                  { t.statement.proof_state with
                    deferred_values =
