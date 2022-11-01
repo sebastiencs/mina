@@ -46,21 +46,58 @@ let pad_accumulator (xs : (Tock.Proof.Challenge_polynomial.t, _) Vector.t) =
       }
   |> Vector.to_list
 
+let old_challenges_to_string (vec: (Pasta_bindings.Fq.t, 'a) Vector.vec) =
+  (String.concat ~sep:"\n"
+     (List.cons
+        ("length=" ^ (string_of_int (Nat.to_int (Vector.length vec ))))
+        (Vector.to_list
+           (Vector.map
+              vec
+              ~f:(fun a -> Pasta_bindings.Fq.to_string a)))))
+
+let curve_to_string (a, b) =
+  (Pasta_bindings.Fq.to_string a) ^ "," ^ (Pasta_bindings.Fq.to_string b)
+
+let curve_vec_to_string (curve_vec: ((Pasta_bindings.Fq.t * Pasta_bindings.Fq.t), 'a) Vector.vec) =
+  (String.concat ~sep:"\n"
+     (List.cons
+        ("length=" ^ (string_of_int (Nat.to_int (Vector.length curve_vec ))))
+        (Vector.to_list (Vector.map curve_vec ~f:curve_to_string) ) ))
+
 (* Hash the me only, padding first. *)
 let hash_messages_for_next_wrap_proof (type n) (max_proofs_verified : n Nat.t)
     (t :
       ( Tick.Curve.Affine.t
       , (_, n) Vector.t )
       Composition_types.Wrap.Proof_state.Messages_for_next_wrap_proof.t ) =
+  Printf.eprintf "START hash_messages_for_next_wrap_proof\n\n%!" ;
+  Printf.eprintf "challenges_computed=%s\n\n%!"
+    (Dummy.Ipa.Wrap.challenges_computed |> old_challenges_to_string);
   let t =
     { t with
       old_bulletproof_challenges = pad_challenges t.old_bulletproof_challenges
     }
   in
-  Tock_field_sponge.digest Tock_field_sponge.params
+  let res = Tock_field_sponge.digest Tock_field_sponge.params
     (Composition_types.Wrap.Proof_state.Messages_for_next_wrap_proof
      .to_field_elements t ~g1:(fun ((x, y) : Tick.Curve.Affine.t) -> [ x; y ])
-    )
+    ) in
+  Printf.eprintf "old_bulletproof_challenges.length=%d inner=\n%s\n\n%!"
+    (Nat.to_int (Vector.length t.old_bulletproof_challenges ))
+    (String.concat ~sep:"\n"
+       (Vector.to_list
+          (Vector.map t.old_bulletproof_challenges ~f:old_challenges_to_string) )) ;
+  Printf.eprintf "challenge_polynomial_commitment=\n%s\n\n%!"
+    (t.challenge_polynomial_commitment |> curve_to_string);
+  Printf.eprintf
+    "END hash_messages_for_next_wrap_proof length=%d %s\n%!"
+    (Nat.to_int (Vector.length res) )
+    (String.concat ~sep:"_"
+       (Vector.to_list
+          (Vector.map res ~f:(fun n -> Core_kernel.Int64.to_string n)) ) ) ;
+  (* Printf.eprintf "END hash_messages_for_next_wrap_proof\n\n%!" ; *)
+
+  res
 
 (* Pad the messages_for_next_wrap_proof of a proof *)
 let pad_proof (type mlmb) (T p : (mlmb, _) Proof.t) :

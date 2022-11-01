@@ -91,6 +91,8 @@ module type S = sig
 
   val to_bits : t -> bool list
 
+  (* val to_string2 : t -> string *)
+
   val of_bits : bool list -> t
 
   val ( + ) : t -> t -> t
@@ -227,6 +229,8 @@ module Make (F : Input_intf) :
     List.fold (List.rev bs) ~init:zero ~f:(fun acc b ->
         let acc = add acc acc in
         if b then add acc one else acc )
+
+  (* let to_string2 t = failwith "a" *)
 
   let%test_unit "sexp round trip" =
     let t = random () in

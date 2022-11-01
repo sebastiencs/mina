@@ -30,14 +30,85 @@ let wrap_domains ~proofs_verified =
   in
   { Domains.h = Pow_2_roots_of_unity h }
 
+let old_challenges_to_string (vec: (Pasta_bindings.Fp.t, 'a) Vector.vec) =
+  (String.concat ~sep:"\n"
+     (List.cons
+        ("length=" ^ (string_of_int (Nat.to_int (Vector.length vec ))))
+        (Vector.to_list
+           (Vector.map
+              vec
+              ~f:(fun a -> Pasta_bindings.Fp.to_string a)))))
+
+let curve_to_string (a, b) =
+  (Pasta_bindings.Fp.to_string a) ^ "," ^ (Pasta_bindings.Fp.to_string b)
+
+let curve_vec_to_string (curve_vec: ((Pasta_bindings.Fp.t * Pasta_bindings.Fp.t), 'a) Vector.vec) =
+  (String.concat ~sep:"\n"
+     (List.cons
+        ("length=" ^ (string_of_int (Nat.to_int (Vector.length curve_vec ))))
+        (Vector.to_list (Vector.map curve_vec ~f:curve_to_string) ) ))
+
+      (* { sigma_comm : 'comm Plonk_types.Permuts_vec.Stable.V1.t *)
+      (* ; coefficients_comm : 'comm Plonk_types.Columns_vec.Stable.V1.t *)
+      (* ; generic_comm : 'comm *)
+      (* ; psm_comm : 'comm *)
+      (* ; complete_add_comm : 'comm *)
+      (* ; mul_comm : 'comm *)
+      (* ; emul_comm : 'comm *)
+      (* ; endomul_scalar_comm : 'comm *)
+      (* } *)
+
 let hash_messages_for_next_step_proof ~app_state
-    (t : _ Types.Step.Proof_state.Messages_for_next_step_proof.t) =
+      (t : _ Types.Step.Proof_state.Messages_for_next_step_proof.t) =
   let g (x, y) = [ x; y ] in
+  Printf.eprintf "START hash_messages_for_next_step_proof\n%!" ;
   let open Backend in
-  Tick_field_sponge.digest Tick_field_sponge.params
-    (Types.Step.Proof_state.Messages_for_next_step_proof.to_field_elements t ~g
-       ~comm:(fun (x : Tock.Curve.Affine.t) -> Array.of_list (g x))
-       ~app_state )
+  let res = Tick_field_sponge.digest Tick_field_sponge.params
+              (Types.Step.Proof_state.Messages_for_next_step_proof.to_field_elements t ~g
+                 ~comm:(fun (x : Tock.Curve.Affine.t) -> Array.of_list (g x))
+                 ~app_state ) in
+  Printf.eprintf "dlog_plonk_index.comm_sigma=\n%s\n\n%!"
+    (t.dlog_plonk_index.sigma_comm |> curve_vec_to_string);
+  Printf.eprintf "dlog_plonk_index.coefficients_comm=\n%s\n\n%!"
+    (t.dlog_plonk_index.coefficients_comm |> curve_vec_to_string);
+  Printf.eprintf "dlog_plonk_index.generic_comm=\n%s\n\n%!"
+    (t.dlog_plonk_index.generic_comm |> curve_to_string);
+  Printf.eprintf "dlog_plonk_index.psm_comm=\n%s\n\n%!"
+    (t.dlog_plonk_index.psm_comm |> curve_to_string);
+  Printf.eprintf "dlog_plonk_index.complete_add_comm=\n%s\n\n%!"
+    (t.dlog_plonk_index.complete_add_comm |> curve_to_string);
+  Printf.eprintf "dlog_plonk_index.mul_comm=\n%s\n\n%!"
+    (t.dlog_plonk_index.mul_comm |> curve_to_string);
+  Printf.eprintf "dlog_plonk_index.emul_comm=\n%s\n\n%!"
+    (t.dlog_plonk_index.emul_comm |> curve_to_string);
+  Printf.eprintf "dlog_plonk_index.endomul_scalar_comm=\n%s\n\n%!"
+    (t.dlog_plonk_index.endomul_scalar_comm |> curve_to_string);
+  Printf.eprintf "app_state.length=%d value=\n%s\n\n%!"
+    (Array.length (app_state t.app_state) )
+    (String.concat ~sep:"\n"
+       (Array.to_list
+          (Array.map
+             (app_state t.app_state)
+             ~f:(fun a -> Pasta_bindings.Fp.to_string a ))));
+  Printf.eprintf "challenge_polynomial_commitments.length=%d inner=\n%s\n\n%!"
+    (Nat.to_int (Vector.length t.challenge_polynomial_commitments ))
+    (String.concat ~sep:"\n"
+       (Vector.to_list
+          (Vector.map
+             t.challenge_polynomial_commitments
+             ~f:(fun (a, b) -> (Pasta_bindings.Fp.to_string a) ^ "," ^ (Pasta_bindings.Fp.to_string b))) ) ) ;
+  Printf.eprintf "old_bulletproof_challenges.length=%d inner=\n%s\n\n%!"
+    (Nat.to_int (Vector.length t.old_bulletproof_challenges ))
+    (String.concat ~sep:"\n"
+       (Vector.to_list
+          (Vector.map t.old_bulletproof_challenges ~f:old_challenges_to_string) )) ;
+  Printf.eprintf
+    "END hash_messages_for_next_step_proof length=%d %s\n%!"
+    (Nat.to_int (Vector.length res) )
+    (String.concat ~sep:"_"
+       (Vector.to_list
+          (Vector.map res ~f:(fun n -> Core_kernel.Int64.to_string n)) ) ) ;
+  res
 
 let dlog_pcs_batch (type proofs_verified total)
     ((without_degree_bound, _pi) :
@@ -151,7 +222,10 @@ module Ipa = struct
 
     let endo_to_field = Endo.Step_inner_curve.to_field
 
-    let compute_challenge c = compute_challenge field ~endo_to_field c
+    let compute_challenge c =
+      let res = compute_challenge field ~endo_to_field c in
+      Printf.eprintf "COMPUTE_CHALLENGE=%d RES=%s\n%!" (Nat.to_int (Vector.length c.inner)) (Pasta_bindings.Fq.to_string res);
+      res
 
     let compute_challenges cs = compute_challenges field ~endo_to_field cs
 

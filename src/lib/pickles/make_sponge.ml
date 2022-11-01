@@ -64,8 +64,27 @@ module Make (Field : Kimchi_backend.Field.S) = struct
 
   let digest params elts =
     let sponge = Bits.create params in
+    Printf.eprintf "\nFIELDS %d\n%s\n\n%!"
+      (Array.length elts)
+      (String.concat ~sep:"\n"
+         (Array.to_list
+            (Array.map elts ~f:(fun field -> Inputs.Field.to_string field)) ) ) ;
     Array.iter elts ~f:(Bits.absorb sponge) ;
-    Bits.squeeze_field sponge |> Inputs.Field.to_bits |> D.Constant.of_bits
+    let res = Bits.squeeze_field sponge in
+    Printf.eprintf "RESULT_FIELD=%s\n\n%!" (Inputs.Field.to_string res);
+    res |> Inputs.Field.to_bits |> D.Constant.of_bits
+
+  (* let digest params elts = *)
+  (*   let sponge = Bits.create params in *)
+  (*   Printf.eprintf "\nFIELDS %d\n%s\n\n%!" *)
+  (*     (Array.length elts) *)
+  (*     (String.concat ~sep:"\n" *)
+  (*        (Array.to_list *)
+  (*           (Array.map elts ~f:(fun field -> Inputs.Field.to_string field)) ) ) ; *)
+  (*   Array.iter elts ~f:(Bits.absorb sponge) ; *)
+  (*   let res = Bits.squeeze_field sponge |> Inputs.Field.to_bits |> D.Constant.of_bits in *)
+
+  (*   res *)
 end
 
 module T (M : Sponge.Intf.T) = M

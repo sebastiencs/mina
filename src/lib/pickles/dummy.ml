@@ -32,8 +32,11 @@ module Ipa = struct
           { Bulletproof_challenge.prechallenge } )
 
     let challenges_computed =
+      Printf.eprintf "CHALLENGE.length=%d\n%!" (Nat.to_int (Vector.length challenges));
       Vector.map challenges ~f:(fun { prechallenge } : Tock.Field.t ->
-          Ipa.Wrap.compute_challenge prechallenge )
+Printf.eprintf "PRECHALLENGE=%s\n%!" (String.concat ~sep:"," (Vector.to_list (Vector.map prechallenge.inner ~f:(fun x -> Core_kernel.Int64.to_string x))));
+(* Printf.eprintf "PRECHALLENGE=%d\n%!" (Nat.to_int (Vector.length prechallenge.inner)); *)
+                                                       Ipa.Wrap.compute_challenge prechallenge )
 
     let sg =
       lazy (time "dummy wrap sg" (fun () -> Ipa.Wrap.compute_sg challenges))
