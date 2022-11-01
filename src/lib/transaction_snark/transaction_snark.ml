@@ -267,7 +267,8 @@ module Statement = struct
 
     let to_field_elements t = Random_oracle.pack_input (to_input t)
 
-    let get_bin_size_t () = failwith "unimplemented"
+    let get_bin_prot_helpers () =
+      failwith "Transaction_snark.Statement.With_sok: unimplemented"
 
     module Checked = struct
       type t = var

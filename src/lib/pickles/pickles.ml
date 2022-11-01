@@ -896,7 +896,7 @@ module Make_str (_ : Wire_types.Concrete) = struct
         ( module struct
           type nonrec t = t
 
-          let get_bin_size_t () = failwith "unimplemented"
+          let get_bin_prot_helpers () = failwith "Side_loaded: unimplemented"
 
           let to_field_elements =
             let (Typ typ) = typ in
@@ -1012,14 +1012,14 @@ module Make_str (_ : Wire_types.Concrete) = struct
     let module A_var = struct
       type t = a_var
 
-      let get_bin_size_t () = failwith "unimplemented"
+      let get_bin_prot_helpers () = failwith "A_var: unimplemented"
 
       let to_field_elements = a_var_to_fields
     end in
     let module A_value = struct
       type t = a_value
 
-      let get_bin_size_t () = failwith "unimplemented"
+      let get_bin_prot_helpers () = failwith "A_value: unimplemented"
 
       let to_field_elements = a_value_to_fields
     end in
@@ -1070,7 +1070,7 @@ module Make_str (_ : Wire_types.Concrete) = struct
     let module Value = struct
       type t = value
 
-      let get_bin_size_t () = failwith "unimplemented"
+      let get_bin_prot_helpers () = failwith "Value: unimplemented"
 
       let typ : (var, value) Impls.Step.Typ.t =
         match public_input with

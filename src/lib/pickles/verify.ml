@@ -279,7 +279,7 @@ let verify_heterogenous (ts : Instance.t list) =
            let prepared_statement : _ Types.Wrap.Statement.In_circuit.t =
              { messages_for_next_step_proof =
                  Common.hash_messages_for_next_step_proof
-                   ~get_bin_size_app_state:A_value.get_bin_size_t
+                   ~get_binprot_helpers_app_state:A_value.get_bin_prot_helpers
                    ~app_state:A_value.to_field_elements
                    (Reduced_messages_for_next_proof_over_same_field.Step.prepare
                       ~dlog_plonk_index:key.commitments

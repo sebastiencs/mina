@@ -25,7 +25,8 @@ module type S = sig
 
     val to_field_elements : t -> field array
 
-    val get_bin_size_t : unit -> t Bin_prot.Size.sizer
+    val get_bin_prot_helpers :
+      unit -> t Bin_prot.Size.sizer * t Bin_prot.Writer.t
   end
 
   module type Statement_var_intf =

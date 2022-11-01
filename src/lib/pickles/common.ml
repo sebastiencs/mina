@@ -70,15 +70,21 @@ module Concrete = struct
   [@@deriving bin_io_unversioned]
 end
 
-let hash_messages_for_next_step_proof ?get_bin_size_app_state ~app_state
+let hash_messages_for_next_step_proof ?get_binprot_helpers_app_state ~app_state
     (t : _ Types.Step.Proof_state.Messages_for_next_step_proof.t) =
   let concrete = (Obj.magic (Obj.repr t) : 'a Concrete.t) in
   let g (x, y) = [ x; y ] in
   Printf.eprintf "START hash_messages_for_next_step_proof\n%!" ;
-  let bin_size_app_state = (Option.value_exn get_bin_size_app_state) () in
+  let bin_size_app_state, bin_writer_app_state =
+    (Option.value_exn get_binprot_helpers_app_state) ()
+  in
   let size = Concrete.bin_size_t bin_size_app_state concrete in
   Printf.eprintf "SIZE=%d\n%!" size ;
-  (*let serialized = Bin_prot.Writer.to_string Concrete.bin_write_t concrete in*)
+  let _serialized =
+    Bin_prot.Writer.to_string
+      (Concrete.bin_writer_t bin_writer_app_state)
+      concrete
+  in
   let open Backend in
   let res =
     Tick_field_sponge.digest Tick_field_sponge.params
