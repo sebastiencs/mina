@@ -3368,6 +3368,9 @@ let time lab f =
 let system ~proof_level ~constraint_constants =
   time "Transaction_snark.system" (fun () ->
       Pickles.compile () ~cache:Cache_dir.cache
+        ~get_bin_prot_helpers:(fun () ->
+          Printf.eprintf "@@@ Failed at: %s\n%!" __LOC__ ;
+          failwith "get_bin_prot_helpers" )
         ~public_input:(Input Statement.With_sok.typ) ~auxiliary_typ:Typ.unit
         ~branches:(module Nat.N5)
         ~max_proofs_verified:(module Nat.N2)
@@ -4114,6 +4117,9 @@ module For_tests = struct
         }
       in
       Pickles.compile () ~cache:Cache_dir.cache
+        ~get_bin_prot_helpers:(fun () ->
+          Printf.eprintf "@@@ Failed at: %s\n%!" __LOC__ ;
+          failwith "get_bin_prot_helpers" )
         ~public_input:(Input Zkapp_statement.typ) ~auxiliary_typ:Typ.unit
         ~branches:(module Nat.N2)
         ~max_proofs_verified:(module Nat.N2) (* You have to put 2 here... *)

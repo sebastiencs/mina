@@ -215,6 +215,9 @@ let%test_module "multisig_account" =
                   }
                 in
                 Pickles.compile () ~cache:Cache_dir.cache
+                  ~get_bin_prot_helpers:(fun () ->
+                    Printf.eprintf "@@@ Failed at: %s\n%!" __LOC__ ;
+                    failwith "get_bin_prot_helpers" )
                   ~public_input:(Input Zkapp_statement.typ)
                   ~auxiliary_typ:Typ.unit
                   ~branches:(module Nat.N2)

@@ -542,6 +542,9 @@ let compile :
   in
   let tag, cache_handle, proof, provers =
     Pickles.compile () ?self ?cache ?disk_keys
+      ~get_bin_prot_helpers:(fun () ->
+        Printf.eprintf "@@@ Failed at: %s\n%!" __LOC__ ;
+        failwith "get_bin_prot_helpers" )
       ~public_input:(Output Zkapp_statement.typ)
       ~auxiliary_typ:Typ.(Prover_value.typ () * auxiliary_typ)
       ~branches ~max_proofs_verified ~name ~constraint_constants ~choices

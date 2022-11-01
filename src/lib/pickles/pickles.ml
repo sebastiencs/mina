@@ -934,7 +934,9 @@ module Make_str (_ : Wire_types.Concrete) = struct
 
   let compile_promise :
       type var value a_var a_value ret_var ret_value auxiliary_var auxiliary_value prev_varss prev_valuess prev_ret_varss prev_ret_valuess widthss heightss max_proofs_verified branches.
-         ?self:(var, value, max_proofs_verified, branches) Tag.t
+         ?get_bin_prot_helpers:
+           (unit -> value Bin_prot.Size.sizer * value Bin_prot.Writer.t)
+      -> ?self:(var, value, max_proofs_verified, branches) Tag.t
       -> ?cache:Key_cache.Spec.t list
       -> ?disk_keys:
            (Cache.Step.Key.Verification.t, branches) Vector.t
@@ -985,9 +987,9 @@ module Make_str (_ : Wire_types.Concrete) = struct
    (* This function is an adapter between the user-facing Pickles.compile API
       and the underlying Make(_).compile function which builds the circuits.
    *)
-   fun ?self ?(cache = []) ?disk_keys ?(return_early_digest_exception = false)
-       ~public_input ~auxiliary_typ ~branches ~max_proofs_verified ~name
-       ~constraint_constants ~choices () ->
+   fun ?get_bin_prot_helpers ?self ?(cache = []) ?disk_keys
+       ?(return_early_digest_exception = false) ~public_input ~auxiliary_typ
+       ~branches ~max_proofs_verified ~name ~constraint_constants ~choices () ->
     let self =
       match self with
       | None ->
@@ -1070,7 +1072,12 @@ module Make_str (_ : Wire_types.Concrete) = struct
     let module Value = struct
       type t = value
 
-      let get_bin_prot_helpers () = failwith "Value: unimplemented"
+      let get_bin_prot_helpers () =
+        match get_bin_prot_helpers with
+        | None ->
+            failwith "A_value: unimplemented"
+        | Some f ->
+            f ()
 
       let typ : (var, value) Impls.Step.Typ.t =
         match public_input with
@@ -1125,11 +1132,13 @@ module Make_str (_ : Wire_types.Concrete) = struct
     end in
     (self, cache_handle, (module P), provers)
 
-  let compile ?self ?cache ?disk_keys ~public_input ~auxiliary_typ ~branches
-      ~max_proofs_verified ~name ~constraint_constants ~choices () =
+  let compile ?get_bin_prot_helpers ?self ?cache ?disk_keys ~public_input
+      ~auxiliary_typ ~branches ~max_proofs_verified ~name ~constraint_constants
+      ~choices () =
     let self, cache_handle, proof_module, provers =
-      compile_promise ?self ?cache ?disk_keys ~public_input ~auxiliary_typ
-        ~branches ~max_proofs_verified ~name ~constraint_constants ~choices ()
+      compile_promise ?get_bin_prot_helpers ?self ?cache ?disk_keys
+        ~public_input ~auxiliary_typ ~branches ~max_proofs_verified ~name
+        ~constraint_constants ~choices ()
     in
     let rec adjust_provers :
         type a1 a2 a3 a4 s1 s2_inner.

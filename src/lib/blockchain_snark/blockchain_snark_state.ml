@@ -433,6 +433,7 @@ end) : S = struct
 
   let tag, cache_handle, p, Pickles.Provers.[ step ] =
     Pickles.compile () ~cache:Cache_dir.cache ~public_input:(Input typ)
+      ~get_bin_prot_helpers:Statement.get_bin_prot_helpers
       ~auxiliary_typ:Typ.unit
       ~branches:(module Nat.N1)
       ~max_proofs_verified:(module Nat.N2)

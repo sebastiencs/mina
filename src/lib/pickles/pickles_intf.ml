@@ -368,7 +368,9 @@ module type S = sig
       system for proving membership in that set, with a prover corresponding
       to each inductive rule. *)
   val compile_promise :
-       ?self:('var, 'value, 'max_proofs_verified, 'branches) Tag.t
+       ?get_bin_prot_helpers:
+         (unit -> 'value Bin_prot.Size.sizer * 'value Bin_prot.Writer.t)
+    -> ?self:('var, 'value, 'max_proofs_verified, 'branches) Tag.t
     -> ?cache:Key_cache.Spec.t list
     -> ?disk_keys:
          (Cache.Step.Key.Verification.t, 'branches) Vector.t
@@ -421,7 +423,9 @@ module type S = sig
       system for proving membership in that set, with a prover corresponding
       to each inductive rule. *)
   val compile :
-       ?self:('var, 'value, 'max_proofs_verified, 'branches) Tag.t
+       ?get_bin_prot_helpers:
+         (unit -> 'value Bin_prot.Size.sizer * 'value Bin_prot.Writer.t)
+    -> ?self:('var, 'value, 'max_proofs_verified, 'branches) Tag.t
     -> ?cache:Key_cache.Spec.t list
     -> ?disk_keys:
          (Cache.Step.Key.Verification.t, 'branches) Vector.t

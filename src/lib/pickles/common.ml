@@ -80,11 +80,14 @@ let hash_messages_for_next_step_proof ?get_binprot_helpers_app_state ~app_state
   in
   let size = Concrete.bin_size_t bin_size_app_state concrete in
   Printf.eprintf "SIZE=%d\n%!" size ;
-  let _serialized =
+  let serialized =
     Bin_prot.Writer.to_string
       (Concrete.bin_writer_t bin_writer_app_state)
       concrete
   in
+  Printf.eprintf
+    "Serialized+Base64-encoded Messages_for_next_step_proof:\n%s\n%!"
+    (Stdlib.Result.get_ok @@ Base64.encode serialized) ;
   let open Backend in
   let res =
     Tick_field_sponge.digest Tick_field_sponge.params
