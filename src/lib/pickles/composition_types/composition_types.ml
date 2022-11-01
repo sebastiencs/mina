@@ -481,7 +481,7 @@ module Wrap = struct
             (** The actual application-level state (e.g., for Mina, this is the protocol state which contains the
     merkle root of the ledger, state related to consensus, etc.) *)
       ; dlog_plonk_index : 'g Plonk_verification_key_evals.Stable.Latest.t
-      (* ; dlog_plonk_index : 'g Plonk_verification_key_evals.t *)
+            (* ; dlog_plonk_index : 'g Plonk_verification_key_evals.t *)
             (** The verification key corresponding to the wrap-circuit for this recursive proof system.
           It gets threaded through all the circuits so that the step circuits can verify proofs against
           it.
