@@ -935,7 +935,10 @@ module Make_str (_ : Wire_types.Concrete) = struct
   let compile_promise :
       type var value a_var a_value ret_var ret_value auxiliary_var auxiliary_value prev_varss prev_valuess prev_ret_varss prev_ret_valuess widthss heightss max_proofs_verified branches.
          ?get_bin_prot_helpers:
-           (unit -> value Bin_prot.Size.sizer * value Bin_prot.Writer.t)
+           (   unit
+            -> value Bin_prot.Size.sizer
+               * value Bin_prot.Writer.t
+               * (value -> Sexp.t) )
       -> ?self:(var, value, max_proofs_verified, branches) Tag.t
       -> ?cache:Key_cache.Spec.t list
       -> ?disk_keys:

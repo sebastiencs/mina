@@ -67,7 +67,7 @@ module Concrete = struct
     , Tick.Field.t Vector.Vector_16.Stable.Latest.t
       Vector.Vector_2.Stable.Latest.t )
     Types.Wrap.Messages_for_next_step_proof.t
-  [@@deriving bin_io_unversioned]
+  [@@deriving bin_io_unversioned, sexp]
 end
 
 let hash_messages_for_next_step_proof ?get_binprot_helpers_app_state ~app_state
@@ -75,7 +75,7 @@ let hash_messages_for_next_step_proof ?get_binprot_helpers_app_state ~app_state
   let concrete = (Obj.magic (Obj.repr t) : 'a Concrete.t) in
   let g (x, y) = [ x; y ] in
   Printf.eprintf "START hash_messages_for_next_step_proof\n%!" ;
-  let bin_size_app_state, bin_writer_app_state =
+  let bin_size_app_state, bin_writer_app_state, sexp_of_app_state =
     (Option.value_exn get_binprot_helpers_app_state) ()
   in
   let size = Concrete.bin_size_t bin_size_app_state concrete in
@@ -88,6 +88,10 @@ let hash_messages_for_next_step_proof ?get_binprot_helpers_app_state ~app_state
   Printf.eprintf
     "Serialized+Base64-encoded Messages_for_next_step_proof:\n%s\n%!"
     (Stdlib.Result.get_ok @@ Base64.encode serialized) ;
+  let sexp =
+    Sexp.to_string_hum (Concrete.sexp_of_t sexp_of_app_state concrete)
+  in
+  Printf.eprintf "Sexp:\n%s\n%!" sexp ;
   let open Backend in
   let res =
     Tick_field_sponge.digest Tick_field_sponge.params

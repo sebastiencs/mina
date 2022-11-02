@@ -26,7 +26,7 @@ module type S = sig
     val to_field_elements : t -> field array
 
     val get_bin_prot_helpers :
-      unit -> t Bin_prot.Size.sizer * t Bin_prot.Writer.t
+      unit -> t Bin_prot.Size.sizer * t Bin_prot.Writer.t * (t -> Sexp.t)
   end
 
   module type Statement_var_intf =
@@ -369,7 +369,10 @@ module type S = sig
       to each inductive rule. *)
   val compile_promise :
        ?get_bin_prot_helpers:
-         (unit -> 'value Bin_prot.Size.sizer * 'value Bin_prot.Writer.t)
+         (   unit
+          -> 'value Bin_prot.Size.sizer
+             * 'value Bin_prot.Writer.t
+             * ('value -> Sexp.t) )
     -> ?self:('var, 'value, 'max_proofs_verified, 'branches) Tag.t
     -> ?cache:Key_cache.Spec.t list
     -> ?disk_keys:
@@ -424,7 +427,10 @@ module type S = sig
       to each inductive rule. *)
   val compile :
        ?get_bin_prot_helpers:
-         (unit -> 'value Bin_prot.Size.sizer * 'value Bin_prot.Writer.t)
+         (   unit
+          -> 'value Bin_prot.Size.sizer
+             * 'value Bin_prot.Writer.t
+             * ('value -> Sexp.t) )
     -> ?self:('var, 'value, 'max_proofs_verified, 'branches) Tag.t
     -> ?cache:Key_cache.Spec.t list
     -> ?disk_keys:
