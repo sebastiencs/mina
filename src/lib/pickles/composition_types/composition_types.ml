@@ -349,7 +349,7 @@ module Wrap = struct
             { challenge_polynomial_commitment : 'g1
             ; old_bulletproof_challenges : 'bulletproof_challenges
             }
-          [@@deriving sexp, compare, yojson, hlist, hash, equal]
+          [@@deriving sexp, compare, yojson, hlist, hash, equal, bin_io]
         end
       end]
 

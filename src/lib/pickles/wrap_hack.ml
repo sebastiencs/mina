@@ -62,6 +62,29 @@ let hash_messages_for_next_wrap_proof (type n) (max_proofs_verified : n Nat.t)
      .to_field_elements t ~g1:(fun ((x, y) : Tick.Curve.Affine.t) -> [ x; y ])
     )
 
+module Concrete = struct
+  type t =
+    ( Tick.Curve.Affine.t
+    , (Tick.Field.t Vector.Vector_15.Stable.Latest.t) Vector.Vector_2.Stable.Latest.t )
+      Composition_types.Wrap.Proof_state.Messages_for_next_wrap_proof.t
+  [@@deriving bin_io, sexp]
+end
+
+external rust_get_random_wrap_message : unit -> bytes = "rust_get_random_wrap_message"
+
+external rust_hash_message_for_next_wrap_proof : bytes -> string list -> unit
+  = "rust_hash_message_for_next_wrap_proof"
+
+(* let compare_hash_messages_for_next_wrap_proof =
+ *   let rand_t_b = rust_get_random_wrap_message () in
+ *   let rand_t =
+ *     (Bin_prot.Reader.of_bytes Concrete.bin_reader_t rand_t_b)
+ *   in
+ *   let ocaml_result = hash_messages_for_next_wrap_proof max_proofs_verified rand_t in
+ *   rust_hash_message_for_next_wrap_proof rand_t_b
+ *     (Vector.to_list
+ *        (Vector.map ocaml_result ~f:(fun n -> Core_kernel.Int64.to_string n)) ) ; *)
+
 (* Pad the messages_for_next_wrap_proof of a proof *)
 let pad_proof (type mlmb) (T p : (mlmb, _) Proof.t) :
     Proof.Proofs_verified_max.t =
