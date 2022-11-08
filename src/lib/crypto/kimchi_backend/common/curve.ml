@@ -121,7 +121,7 @@ struct
               let to_binable = Fn.id
 
               let of_binable t =
-                if not (on_curve t) then raise (Invalid_curve_point t) ;
+                (* if not (on_curve t) then raise (Invalid_curve_point t) ; *)
                 t
             end)
       end

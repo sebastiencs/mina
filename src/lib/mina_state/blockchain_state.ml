@@ -132,13 +132,35 @@ let to_input
     Array.reduce_exn ~f:append
       [| Frozen_ledger_hash.to_input ledger; Local_state.to_input local_state |]
   in
-  List.reduce_exn ~f:append
-    [ Staged_ledger_hash.to_input staged_ledger_hash
-    ; Frozen_ledger_hash.to_input genesis_ledger_hash
-    ; registers
-    ; Block_time.to_input timestamp
-    ; Consensus.Body_reference.to_input body_reference
-    ]
+  (* let inputs = (Staged_ledger_hash.to_input staged_ledger_hash) in *)
+  (* Printf.eprintf "STAGED_inputs= field_elements.length=%d packeds.length=%d fields=\n%s\n\npackeds=\n%s\n%!"
+   *   (Array.length inputs.field_elements)
+   *   (Array.length inputs.packeds)
+   *   (String.concat ~sep:"\n" (Array.to_list (Array.map inputs.field_elements ~f:(fun f -> Field.to_string f))))
+   *   (String.concat ~sep:"\n" (Array.to_list (Array.map inputs.packeds ~f:(fun (f, n) -> (Field.to_string f) ^ "_" ^ (string_of_int n)))))
+   * ;
+   * let staged_hash = Random_oracle.hash ~init:Hash_prefix.protocol_state_body
+   *                     (Random_oracle.pack_input inputs) in
+   * Printf.eprintf "STAGED_HASH=%s\n%!" (Field.to_string staged_hash); *)
+  let inputs =
+    List.reduce_exn ~f:append
+      [ Staged_ledger_hash.to_input staged_ledger_hash
+      ; Frozen_ledger_hash.to_input genesis_ledger_hash
+      ; registers
+      ; Block_time.to_input timestamp
+      ; Consensus.Body_reference.to_input body_reference
+      ]
+  in
+  (* Printf.eprintf "inputs= field_elements.length=%d packeds.length=%d fields=\n%s\n\npackeds=\n%s\n%!"
+   *   (Array.length inputs.field_elements)
+   *   (Array.length inputs.packeds)
+   *   (String.concat ~sep:"\n" (Array.to_list (Array.map inputs.field_elements ~f:(fun f -> Field.to_string f))))
+   *   (String.concat ~sep:"\n" (Array.to_list (Array.map inputs.packeds ~f:(fun (f, n) -> (Field.to_string f) ^ "_" ^ (string_of_int n)))))
+   * ; *)
+  (* let staged_hash = Random_oracle.hash ~init:Hash_prefix.protocol_state_body
+   *                     (Random_oracle.pack_input inputs) in
+   * Printf.eprintf "BLOCKCHAIN_STATE_HASH=%s\n%!" (Field.to_string staged_hash); *)
+  inputs
 
 let set_timestamp t timestamp = { t with Poly.timestamp }
 

@@ -70,28 +70,71 @@ module Concrete = struct
   [@@deriving bin_io_unversioned, sexp]
 end
 
+external rust_get_random_message : unit -> bytes = "rust_get_random_message"
+
+external rust_hash_message_for_next_step_proof : bytes -> string list -> unit
+  = "rust_hash_message_for_next_step_proof"
+
+let compare_hash_messages_for_next_step_proof ?get_binprot_helpers_app_state
+    ~app_state =
+  let g (x, y) = [ x; y ] in
+  let ( bin_size_app_state
+      , bin_writer_app_state
+      , bin_reader_app_state
+      , sexp_of_app_state ) =
+    (Option.value_exn get_binprot_helpers_app_state) ()
+  in
+  let rand_t_b = rust_get_random_message () in
+  let rand_t =
+    Bin_prot.Reader.of_bytes
+      (Concrete.bin_reader_t bin_reader_app_state)
+      rand_t_b
+  in
+  let open Backend in
+  let res =
+    Tick_field_sponge.digest Tick_field_sponge.params
+      (Types.Step.Proof_state.Messages_for_next_step_proof.to_field_elements
+         rand_t ~g
+         ~comm:(fun (x : Tock.Curve.Affine.t) -> Array.of_list (g x))
+         ~app_state )
+  in
+  rust_hash_message_for_next_step_proof rand_t_b
+    (Vector.to_list
+       (Vector.map res ~f:(fun n -> Core_kernel.Int64.to_string n)) ) ;
+  res
+
 let hash_messages_for_next_step_proof ?get_binprot_helpers_app_state ~app_state
     (t : _ Types.Step.Proof_state.Messages_for_next_step_proof.t) =
   let concrete = (Obj.magic (Obj.repr t) : 'a Concrete.t) in
   let g (x, y) = [ x; y ] in
   Printf.eprintf "START hash_messages_for_next_step_proof\n%!" ;
-  let bin_size_app_state, bin_writer_app_state, sexp_of_app_state =
+  let ( bin_size_app_state
+      , bin_writer_app_state
+      , bin_reader_app_state
+      , sexp_of_app_state ) =
     (Option.value_exn get_binprot_helpers_app_state) ()
   in
   let size = Concrete.bin_size_t bin_size_app_state concrete in
-  Printf.eprintf "SIZE=%d\n%!" size ;
+  (* Printf.eprintf "SIZE=%d\n%!" size ; *)
   let serialized =
     Bin_prot.Writer.to_string
       (Concrete.bin_writer_t bin_writer_app_state)
       concrete
   in
-  Printf.eprintf
-    "Serialized+Base64-encoded Messages_for_next_step_proof:\n%s\n%!"
-    (Stdlib.Result.get_ok @@ Base64.encode serialized) ;
-  let sexp =
-    Sexp.to_string_hum (Concrete.sexp_of_t sexp_of_app_state concrete)
+
+  let t =
+    Bin_prot.Reader.of_string
+      (Concrete.bin_reader_t bin_reader_app_state)
+      serialized
   in
-  Printf.eprintf "Sexp:\n%s\n%!" sexp ;
+
+  (* Printf.eprintf
+   *   "Serialized+Base64-encoded Messages_for_next_step_proof:\n%s\n%!"
+   *   (Stdlib.Result.get_ok @@ Base64.encode serialized) ;
+   * let sexp =
+   *   Sexp.to_string_hum (Concrete.sexp_of_t sexp_of_app_state concrete)
+   * in
+   * Printf.eprintf "Sexp:\n%s\n%!" sexp ; *)
   let open Backend in
   let res =
     Tick_field_sponge.digest Tick_field_sponge.params
@@ -100,41 +143,48 @@ let hash_messages_for_next_step_proof ?get_binprot_helpers_app_state ~app_state
          ~comm:(fun (x : Tock.Curve.Affine.t) -> Array.of_list (g x))
          ~app_state )
   in
-  Printf.eprintf "dlog_plonk_index.comm_sigma=\n%s\n\n%!"
-    (t.dlog_plonk_index.sigma_comm |> curve_vec_to_string) ;
-  Printf.eprintf "dlog_plonk_index.coefficients_comm=\n%s\n\n%!"
-    (t.dlog_plonk_index.coefficients_comm |> curve_vec_to_string) ;
-  Printf.eprintf "dlog_plonk_index.generic_comm=\n%s\n\n%!"
-    (t.dlog_plonk_index.generic_comm |> curve_to_string) ;
-  Printf.eprintf "dlog_plonk_index.psm_comm=\n%s\n\n%!"
-    (t.dlog_plonk_index.psm_comm |> curve_to_string) ;
-  Printf.eprintf "dlog_plonk_index.complete_add_comm=\n%s\n\n%!"
-    (t.dlog_plonk_index.complete_add_comm |> curve_to_string) ;
-  Printf.eprintf "dlog_plonk_index.mul_comm=\n%s\n\n%!"
-    (t.dlog_plonk_index.mul_comm |> curve_to_string) ;
-  Printf.eprintf "dlog_plonk_index.emul_comm=\n%s\n\n%!"
-    (t.dlog_plonk_index.emul_comm |> curve_to_string) ;
-  Printf.eprintf "dlog_plonk_index.endomul_scalar_comm=\n%s\n\n%!"
-    (t.dlog_plonk_index.endomul_scalar_comm |> curve_to_string) ;
-  Printf.eprintf "app_state.length=%d value=\n%s\n\n%!"
-    (Array.length (app_state t.app_state))
-    (String.concat ~sep:"\n"
-       (Array.to_list
-          (Array.map (app_state t.app_state) ~f:(fun a ->
-               Pasta_bindings.Fp.to_string a ) ) ) ) ;
-  Printf.eprintf "challenge_polynomial_commitments.length=%d inner=\n%s\n\n%!"
-    (Nat.to_int (Vector.length t.challenge_polynomial_commitments))
-    (String.concat ~sep:"\n"
-       (Vector.to_list
-          (Vector.map t.challenge_polynomial_commitments ~f:(fun (a, b) ->
-               Pasta_bindings.Fp.to_string a
-               ^ ","
-               ^ Pasta_bindings.Fp.to_string b ) ) ) ) ;
-  Printf.eprintf "old_bulletproof_challenges.length=%d inner=\n%s\n\n%!"
-    (Nat.to_int (Vector.length t.old_bulletproof_challenges))
-    (String.concat ~sep:"\n"
-       (Vector.to_list
-          (Vector.map t.old_bulletproof_challenges ~f:old_challenges_to_string) ) ) ;
+  (* rust_hash_message_for_next_step_proof (Stdlib.Result.get_ok @@ Base64.encode serialized) (Vector.to_list
+   *         (Vector.map res ~f:(fun n -> Core_kernel.Int64.to_string n)) ) ; *)
+  (* Printf.eprintf "dlog_plonk_index.comm_sigma=\n%s\n\n%!"
+   *   (t.dlog_plonk_index.sigma_comm |> curve_vec_to_string) ;
+   * Printf.eprintf "dlog_plonk_index.coefficients_comm=\n%s\n\n%!"
+   *   (t.dlog_plonk_index.coefficients_comm |> curve_vec_to_string) ;
+   * Printf.eprintf "dlog_plonk_index.generic_comm=\n%s\n\n%!"
+   *   (t.dlog_plonk_index.generic_comm |> curve_to_string) ;
+   * Printf.eprintf "dlog_plonk_index.psm_comm=\n%s\n\n%!"
+   *   (t.dlog_plonk_index.psm_comm |> curve_to_string) ;
+   * Printf.eprintf "dlog_plonk_index.complete_add_comm=\n%s\n\n%!"
+   *   (t.dlog_plonk_index.complete_add_comm |> curve_to_string) ;
+   * Printf.eprintf "dlog_plonk_index.mul_comm=\n%s\n\n%!"
+   *   (t.dlog_plonk_index.mul_comm |> curve_to_string) ;
+   * Printf.eprintf "dlog_plonk_index.emul_comm=\n%s\n\n%!"
+   *   (t.dlog_plonk_index.emul_comm |> curve_to_string) ;
+   * Printf.eprintf "dlog_plonk_index.endomul_scalar_comm=\n%s\n\n%!"
+   *   (t.dlog_plonk_index.endomul_scalar_comm |> curve_to_string) ;
+   *
+   * Printf.eprintf "Calling (app_state t.app_state)\n%!" ;
+   * let len = Array.length (app_state t.app_state) in
+   * Printf.eprintf "Called (app_state t.app_state)=%d\n%!" len ;
+   *
+   * Printf.eprintf "app_state.length=%d value=\n%s\n\n%!"
+   *   (Array.length (app_state t.app_state))
+   *   (String.concat ~sep:"\n"
+   *      (Array.to_list
+   *         (Array.map (app_state t.app_state) ~f:(fun a ->
+   *              Pasta_bindings.Fp.to_string a ) ) ) ) ;
+   * Printf.eprintf "challenge_polynomial_commitments.length=%d inner=\n%s\n\n%!"
+   *   (Nat.to_int (Vector.length t.challenge_polynomial_commitments))
+   *   (String.concat ~sep:"\n"
+   *      (Vector.to_list
+   *         (Vector.map t.challenge_polynomial_commitments ~f:(fun (a, b) ->
+   *              Pasta_bindings.Fp.to_string a
+   *              ^ ","
+   *              ^ Pasta_bindings.Fp.to_string b ) ) ) ) ;
+   * Printf.eprintf "old_bulletproof_challenges.length=%d inner=\n%s\n\n%!"
+   *   (Nat.to_int (Vector.length t.old_bulletproof_challenges))
+   *   (String.concat ~sep:"\n"
+   *      (Vector.to_list
+   *         (Vector.map t.old_bulletproof_challenges ~f:old_challenges_to_string) ) ) ; *)
   Printf.eprintf "END hash_messages_for_next_step_proof length=%d %s\n%!"
     (Nat.to_int (Vector.length res))
     (String.concat ~sep:"_"

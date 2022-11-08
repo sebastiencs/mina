@@ -276,6 +276,12 @@ let verify_heterogenous (ts : Instance.t list) =
                 , T t ) )
               plonk
             ->
+           for i = 1 to 1000 do
+             Common.compare_hash_messages_for_next_step_proof
+               ~get_binprot_helpers_app_state:A_value.get_bin_prot_helpers
+               ~app_state:A_value.to_field_elements
+           done ;
+           (* let rand_one = get_random_message () in *)
            let prepared_statement : _ Types.Wrap.Statement.In_circuit.t =
              { messages_for_next_step_proof =
                  Common.hash_messages_for_next_step_proof

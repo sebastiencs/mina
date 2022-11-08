@@ -938,6 +938,7 @@ module Make_str (_ : Wire_types.Concrete) = struct
            (   unit
             -> value Bin_prot.Size.sizer
                * value Bin_prot.Writer.t
+               * value Bin_prot.Reader.t
                * (value -> Sexp.t) )
       -> ?self:(var, value, max_proofs_verified, branches) Tag.t
       -> ?cache:Key_cache.Spec.t list

@@ -256,10 +256,23 @@ let var_of_t ({ pending_coinbase_hash; non_snark } : t) : var =
   { non_snark; pending_coinbase_hash }
 
 let to_input ({ non_snark; pending_coinbase_hash } : t) =
-  Random_oracle.Input.Chunked.(
-    append
-      (Non_snark.to_input non_snark)
-      (field (pending_coinbase_hash :> Field.t)))
+  (* Printf.eprintf "protocol_state.body.blockchain_state.staged_ledger_hash.to_input\n%!";
+   * Printf.eprintf "protocol_state.body.blockchain_state.staged_ledger_hash.pending=%s\n%!" (Field.to_string (pending_coinbase_hash :> Field.t)); *)
+  let inputs =
+    Random_oracle.Input.Chunked.(
+      append
+        (Non_snark.to_input non_snark)
+        (field (pending_coinbase_hash :> Field.t)))
+  in
+  (* Printf.eprintf "STAGE_LEDGER_inputs= field_elements.length=%d packeds.length=%d fields=\n%s\n\npackeds=\n%s\n%!"
+   *   (Array.length inputs.field_elements)
+   *   (Array.length inputs.packeds)
+   *   (String.concat ~sep:"\n" (Array.to_list (Array.map inputs.field_elements ~f:(fun f -> Field.to_string f))))
+   *   (String.concat ~sep:"\n" (Array.to_list (Array.map inputs.packeds ~f:(fun (f, n) -> (Field.to_string f) ^ "_" ^ (string_of_int n))))) ;
+   * let staged_hash = Random_oracle.hash ~init:Hash_prefix.protocol_state_body
+   *                     (Random_oracle.pack_input inputs) in
+   * Printf.eprintf "STAGED_HASH=%s\n%!" (Field.to_string staged_hash); *)
+  inputs
 
 let var_to_input ({ non_snark; pending_coinbase_hash } : var) =
   Random_oracle.Input.Chunked.(

@@ -294,7 +294,11 @@ module type Statement = sig
   val to_field_elements : t -> field array
 
   val get_bin_prot_helpers :
-    unit -> t Bin_prot.Size.sizer * t Bin_prot.Writer.t * (t -> Sexp.t)
+       unit
+    -> t Bin_prot.Size.sizer
+       * t Bin_prot.Writer.t
+       * t Bin_prot.Reader.t
+       * (t -> Sexp.t)
 end
 
 module type Statement_var =

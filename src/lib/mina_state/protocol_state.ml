@@ -97,16 +97,36 @@ module Body = struct
       ; consensus_state
       ; constants
       } =
-    Random_oracle.Input.Chunked.(
-      append
-        (Blockchain_state.to_input blockchain_state)
-        (Consensus.Data.Consensus_state.to_input consensus_state)
-      |> append (field (genesis_state_hash :> Field.t))
-      |> append (Protocol_constants_checked.to_input constants))
+    (* Printf.eprintf "protocol_state.body.to_input\n%!"; *)
+    (* let inputs = (Protocol_constants_checked.to_input constants) in
+     * let body_hash = Random_oracle.hash ~init:Hash_prefix.protocol_state_body
+     *                   (Random_oracle.pack_input inputs) in *)
+    (* Printf.eprintf "CONSTANTS_inputs= field_elements.length=%d packeds.length=%d fields=\n%s\n\npackeds=\n%s\n%!"
+     *   (Array.length inputs.field_elements)
+     *   (Array.length inputs.packeds)
+     *   (String.concat ~sep:"\n" (Array.to_list (Array.map inputs.field_elements ~f:(fun f -> Field.to_string f))))
+     *   (String.concat ~sep:"\n" (Array.to_list (Array.map inputs.packeds ~f:(fun (f, n) -> (Field.to_string f) ^ "_" ^ (string_of_int n))))) ;
+     * Printf.eprintf "CONSTANTS_HASH=%s\n%!" (Field.to_string body_hash); *)
+    let inputs =
+      Random_oracle.Input.Chunked.(
+        append
+          (Blockchain_state.to_input blockchain_state)
+          (Consensus.Data.Consensus_state.to_input consensus_state)
+        |> append (field (genesis_state_hash :> Field.t))
+        |> append (Protocol_constants_checked.to_input constants))
+    in
+
+    (* Printf.eprintf "PROTO_STATE_inputs= field_elements.length=%d packeds.length=%d fields=\n%s\n\npackeds=\n%s\n%!"
+     *   (Array.length inputs.field_elements)
+     *   (Array.length inputs.packeds)
+     *   (String.concat ~sep:"\n" (Array.to_list (Array.map inputs.field_elements ~f:(fun f -> Field.to_string f))))
+     *   (String.concat ~sep:"\n" (Array.to_list (Array.map inputs.packeds ~f:(fun (f, n) -> (Field.to_string f) ^ "_" ^ (string_of_int n))))) ; *)
+    inputs
 
   let var_to_input
       { Poly.genesis_state_hash; blockchain_state; consensus_state; constants }
       =
+    (* Printf.eprintf "protocol_state.var_input\n%!"; *)
     let blockchain_state = Blockchain_state.var_to_input blockchain_state in
     let constants = Protocol_constants_checked.var_to_input constants in
     let consensus_state =
@@ -118,6 +138,7 @@ module Body = struct
       |> append constants)
 
   let hash_checked (t : var) =
+    (* Printf.eprintf "protocol_state.hash_checked\n%!"; *)
     let input = var_to_input t in
     make_checked (fun () ->
         Random_oracle.Checked.(
@@ -145,12 +166,17 @@ module Body = struct
   [%%endif]
 
   let hash s =
-    Random_oracle.hash ~init:Hash_prefix.protocol_state_body
-      (Random_oracle.pack_input (to_input s))
-    |> State_body_hash.of_hash
+    (* Printf.eprintf "protocol_state.body.hash\n%!"; *)
+    let hash =
+      Random_oracle.hash ~init:Hash_prefix.protocol_state_body
+        (Random_oracle.pack_input (to_input s))
+    in
+    (* Printf.eprintf "BODY_HASH=%s\n%!" (Field.to_string hash); *)
+    hash |> State_body_hash.of_hash
 
   let view (t : Value.t) : Zkapp_precondition.Protocol_state.View.t =
     let module C = Consensus.Proof_of_stake.Exported.Consensus_state in
+    (* Printf.eprintf "protocol_state.view\n%!"; *)
     let cs = t.consensus_state in
     { snarked_ledger_hash = t.blockchain_state.registers.ledger
     ; timestamp = t.blockchain_state.timestamp
