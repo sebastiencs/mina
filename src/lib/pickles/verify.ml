@@ -275,8 +275,9 @@ let verify_heterogenous (ts : Instance.t list) =
                 , app_state
                 , T t ) )
               plonk
-            ->
+           ->
            for i = 1 to 1000 do
+             Wrap_hack.compare_hash_messages_for_next_wrap_proof Max_proofs_verified.n;
              Common.compare_hash_messages_for_next_step_proof
                ~get_binprot_helpers_app_state:A_value.get_bin_prot_helpers
                ~app_state:A_value.to_field_elements
