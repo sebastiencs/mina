@@ -322,8 +322,8 @@ module Make (Inputs : Inputs_intf) :
       Rust.database_get_inner_hash_at_addr mdb (Addr.to_string address)
       |> hash_from_rust
     in
-    Printf.eprintf "GET_INNER_HASH=%s\n%!"
-      (Snark_params.Tick.Field.to_string hash) ;
+    (* Printf.eprintf "GET_INNER_HASH=%s\n%!" *)
+    (*   (Snark_params.Tick.Field.to_string hash) ; *)
     hash
   (* |> Bigstring.of_bytes *)
   (* |> Hash.bin_read_t ~pos_ref:(ref 0) *)
