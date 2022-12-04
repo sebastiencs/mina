@@ -564,6 +564,7 @@ module T = struct
 
   let apply_transaction_and_get_witness ~constraint_constants ledger
       pending_coinbase_stack_state s status txn_state_view state_and_body_hash =
+    Core.Printf.eprintf "MY_LOG.APPLY_TRANSACTION_AND_GET_WITNESS\n%!" ;
     let open Deferred.Result.Let_syntax in
     let account_ids : Transaction.t -> _ = function
       | Fee_transfer t ->
@@ -578,11 +579,14 @@ module T = struct
           in
           Account_id.create c.receiver Token_id.default :: ft_receivers
     in
+    Core.Printf.eprintf "MY_LOG.APPLY_TRANSACTION_AND_GET_WITNESS_111\n%!" ;
     let ledger_witness =
       O1trace.sync_thread "create_ledger_witness" (fun () ->
           Sparse_ledger.of_ledger_subset_exn ledger (account_ids s) )
     in
+    Core.Printf.eprintf "MY_LOG.APPLY_TRANSACTION_AND_GET_WITNESS_222\n%!" ;
     let%bind () = yield_result () in
+
     let%bind applied_txn, statement, updated_pending_coinbase_stack_state =
       O1trace.sync_thread "apply_transaction_to_scan_state" (fun () ->
           apply_transaction_and_get_statement ~constraint_constants ledger
