@@ -844,9 +844,11 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
           , Transaction_applied.Signed_command_applied.Body.Stake_delegation
               { previous_delegate } )
       | Payment { amount; _ } ->
+         Printf.eprintf "MY_LOG.getting_location\n%!";
           let receiver_location, receiver_account =
             get_with_location ledger receiver |> ok_or_reject
           in
+         Printf.eprintf "MY_LOG.got location\n%!";
           let%bind () =
             if Account.has_permission ~to_:`Receive receiver_account then Ok ()
             else Error Transaction_status.Failure.Update_not_permitted_balance
