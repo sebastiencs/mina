@@ -940,20 +940,20 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
             | `New ->
                 [ receiver ]
           in
-          let receiver_loc =
-            match receiver_location with
-            | `Existing _ ->
-                "Existing"
-            | `New ->
-                "New"
-          in
-          let source_loc =
-            match source_location with
-            | `Existing _ ->
-                "Existing"
-            | `New ->
-                "New"
-          in
+          (* let receiver_loc = *)
+          (*   match receiver_location with *)
+          (*   | `Existing _ -> *)
+          (*       "Existing" *)
+          (*   | `New -> *)
+          (*       "New" *)
+          (* in *)
+          (* let source_loc = *)
+          (*   match source_location with *)
+          (*   | `Existing _ -> *)
+          (*       "Existing" *)
+          (*   | `New -> *)
+          (*       "New" *)
+          (* in *)
           (* Printf.eprintf *)
           (*   "MY_LOG.apply_user_command_unchecked applied receiver=%s source=%s!\n%!" *)
           (*   receiver_loc source_loc ; *)
@@ -983,7 +983,7 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
             : Transaction_applied.Signed_command_applied.t )
     | Error failure ->
         (* Printf.eprintf "compute_updates err=%s\n%!" *)
-          (Transaction_status.Failure.to_string failure) ;
+        (*   (Transaction_status.Failure.to_string failure) ; *)
         (* Do not update the ledger. Except for the fee payer which is already updated *)
         let applied_common : Transaction_applied.Signed_command_applied.Common.t
             =
