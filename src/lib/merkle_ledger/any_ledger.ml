@@ -201,6 +201,7 @@ module Make_base (Inputs : Inputs_intf) :
 
     let merkle_root a =
       Printf.eprintf "MY_LOG.ANY.MERKLE_ROOT\n%!" ;
+      print_backtrace 0 ;
       let res = mask2_merkle_root a |> hash_from_rust in
       (* let res = Base.merkle_root t in *)
       Printf.eprintf "MY_LOG.ANY.MERKLE_ROOT2\n%!" ;
@@ -387,7 +388,7 @@ module Make_base (Inputs : Inputs_intf) :
     let make_space_for (T ((module Base), t)) =
       Printf.eprintf "MY_LOG.ANY.MAKE_SPACE_FOR\n%!" ;
       print_backtrace 0 ;
-      Base.make_space_for t
+      (* Base.make_space_for t *)
 
     external mask_get_all_accounts_rooted_at : 'a -> 'b -> ('b * 'c) list
       = "rust_mask_get_all_accounts_rooted_at"
