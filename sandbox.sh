@@ -2,6 +2,11 @@
 
 set -eo pipefail
 
+export RUST_BACKTRACE=1
+export CC=gcc CXX=g++
+export LD_LIBRARY_PATH="$(pwd)/src/lib/mina_tree/target/release"
+export DUNE_PROFILE=devnet
+
 MINA_EXE_PATH=${MINA_EXE_PATH:-_build/default/src/app/cli/src/mina.exe}
 MINA_SANDBOX_DIR=${MINA_SANDBOX_DIR:-/tmp/mina-sandbox}
 
@@ -60,7 +65,9 @@ chmod 700 "$MINA_SANDBOX_DIR/keys/"
 # gdb --args $MINA_EXE_PATH daemon --generate-genesis-proof true --seed --demo-mode --proof-level none --config-dir ${MINA_CONFIG_DIR} --block-producer-pubkey ${PK} --run-snark-worker ${SNARK_PK} -insecure-rest-server $@
 
 # gdb --args \
-$MINA_EXE_PATH daemon --libp2p-keypair "$MINA_SANDBOX_DIR/keys/libp2p_key" --generate-genesis-proof true --seed --demo-mode --proof-level none --config-dir ${MINA_CONFIG_DIR} --block-producer-pubkey ${PK} --run-snark-worker ${SNARK_PK} -insecure-rest-server --log-level trace $@
+$MINA_EXE_PATH daemon --libp2p-keypair "$MINA_SANDBOX_DIR/keys/libp2p_key" --generate-genesis-proof true --seed --demo-mode --proof-level none --config-dir ${MINA_CONFIG_DIR} --block-producer-pubkey ${PK} --run-snark-worker ${SNARK_PK} -insecure-rest-server --log-level info $@
+
+# Or --log-level info debug trace
 
 rc=$?
 echo "Exiting Mina demo." && exit $rc
