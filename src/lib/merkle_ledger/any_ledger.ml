@@ -385,10 +385,10 @@ module Make_base (Inputs : Inputs_intf) :
      *   Printf.eprintf "MY_LOG.ANY.TO_LIST\n%!" ;
      *   Base.to_list t *)
 
-    let make_space_for (T ((module Base), t)) =
+    let make_space_for _m _index =
       Printf.eprintf "MY_LOG.ANY.MAKE_SPACE_FOR\n%!" ;
-      print_backtrace 0 ;
-      (* Base.make_space_for t *)
+      print_backtrace 0
+    (* Base.make_space_for t *)
 
     external mask_get_all_accounts_rooted_at : 'a -> 'b -> ('b * 'c) list
       = "rust_mask_get_all_accounts_rooted_at"
