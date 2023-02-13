@@ -1700,6 +1700,7 @@ module T = struct
     let isEmpty (res : Resources.t) =
       has_no_commands res && Resources.coinbase_added res = 0
     in
+    Core.Printf.eprintf !"partitions=%{sexp: Scan_state.Space_partition.t}\n%!" partitions;
     (*Partitioning explained in PR #687 *)
     match partitions.second with
     | None ->
@@ -1719,6 +1720,7 @@ module T = struct
             ~is_coinbase_receiver_new ~supercharge_coinbase `First
         in
         let incr_coinbase_and_compute res count =
+          Core.Printf.eprintf !"incr_coinbase_and_compute called count=%{sexp: [`One | `Two]}\n%!" count;
           let new_res =
             Resources.incr_coinbase_part_by ~constraint_constants res count
           in
@@ -1733,11 +1735,12 @@ module T = struct
               second_pre_diff new_res y ~add_coinbase:false cw_seq_2
             in
             if isEmpty res2 then
+              (Core.Printf.eprintf "res2 is_empty\n%!";
               (*Don't create the second prediff instead recompute first diff with just once coinbase*)
               ( one_prediff ~constraint_constants cw_seq_1 ts_seq ~receiver
                   partitions.first ~add_coinbase:true logger
                   ~is_coinbase_receiver_new ~supercharge_coinbase `First
-              , None )
+              , None ))
             else ((new_res, log1), Some (res2, log2))
         in
         let try_with_coinbase () =
@@ -2438,9 +2441,12 @@ let%test_module "staged ledger tests" =
         -> unit Deferred.t =
      fun account_ids_to_check cmds cmd_iters sl ?(expected_proof_count = None)
          ?(allow_failures = false) test_mask provers stmt_to_work ->
+     let niters = ref 0 in
       let%map total_ledger_proofs =
         iter_cmds_acc cmds cmd_iters 0
           (fun cmds_left count_opt cmds_this_iter proof_count ->
+            Core.Printf.eprintf "######## Start iteration %d ########\n%!" !niters;
+            Core.Printf.eprintf "attempt_to_apply_nuser_commands=%d\n%!" (Sequence.length cmds_this_iter);
             let%bind ledger_proof, diff =
               create_and_apply sl cmds_this_iter stmt_to_work
             in
@@ -2465,7 +2471,9 @@ let%test_module "staged ledger tests" =
             let cmds_applied_this_iter =
               List.length @@ Staged_ledger_diff.commands diff
             in
+            Core.Printf.eprintf "user_commands_applied_this_iter=%d\n%!" cmds_applied_this_iter;
             let cb = coinbase_count diff in
+            Core.Printf.eprintf "coinbase_count=%d\n%!" cb;
             ( match provers with
             | `One_prover ->
                 assert (cb = 1)
@@ -2487,6 +2495,8 @@ let%test_module "staged ledger tests" =
             let coinbase_cost = coinbase_cost diff in
             assert_ledger test_mask ~coinbase_cost !sl cmds_left
               cmds_applied_this_iter account_ids_to_check ;
+            Core.Printf.eprintf "######## Iteration %d done ########\n\n%!" !niters;
+            niters := !niters + 1;
             return (diff, proof_count') )
       in
       (*Should have enough blocks to generate at least expected_proof_count
@@ -2708,6 +2718,123 @@ let%test_module "staged ledger tests" =
     (*           test_simple *)
     (*             (init_pks ledger_init_state) *)
     (*             cmds iters sl test_mask `One_prover stmt_to_work_one_prover ) ) *)
+
+    let gen_with_ncmds_per_iter cmds_per_iter =
+      let open Quickcheck.Generator.Let_syntax in
+      let%bind ledger_init_state = Ledger.gen_initial_ledger_state in
+
+      let total_cmds = List.fold cmds_per_iter ~init:0 ~f:( + ) in
+      let%bind cmds =
+        User_command.Valid.Gen.sequence ~length:total_cmds ~sign_type:`Real
+          ledger_init_state
+      in
+      assert (List.length cmds = total_cmds) ;
+      return (ledger_init_state, cmds, List.map ~f:Option.some cmds_per_iter)
+
+    (*
+      Case where the coinbase should be split in 2, but it is not the case
+
+      - On the 1st iteration, the current tree is empty, we fill it with 125
+        user commands, 1 fee transfer and 1 coinbase
+        The coinbase is supposed to be split here, but it is not the case
+        This leaves 1 empty slot in the current tree
+
+      - The 2nd iteration applies nothing but a single coinbase, ignoring all user commands
+
+
+       Output of this test:
+       ```
+       ######## Start iteration 0 ########
+       attempt_to_apply_nuser_commands=125
+       partitions=((first (128 0)) (second ()))
+       user_commands_applied_this_iter=125
+       coinbase_count=1
+       ######## Iteration 0 done ########
+
+       ######## Start iteration 1 ########
+       attempt_to_apply_nuser_commands=17
+       partitions=((first (1 0)) (second ((127 0))))
+       user_commands_applied_this_iter=0
+       coinbase_count=1
+       ######## Iteration 1 done ########
+       ```
+     *)
+    let%test_unit "Empty tree, coinbase is not split in 2, and user command are ignored on next iteration" =
+
+      (* Number of user command we attempt to apply per iteration *)
+      let cmds_per_iter = [
+          125; (* 125 user commands, 1 fee transfer, 1 coinbase *)
+          17; (* only 1 coinbase is applied, even though there are 17 user commands *)
+
+          (* Same pattern for the following iterations *)
+          125;
+          17; (* Still only 1 coinbase applied *)
+        ] in
+
+      Quickcheck.test (gen_with_ncmds_per_iter cmds_per_iter) ~trials:1
+        ~f:(fun (ledger_init_state, cmds, iters) ->
+          async_with_ledgers ledger_init_state (fun sl test_mask ->
+              test_simple
+                (init_pks ledger_init_state)
+                cmds iters sl test_mask `One_prover stmt_to_work_one_prover ) )
+
+    (*
+       This is another case where the coinbase should be split in 2, but it is not the case
+
+       - Here the current tree is partially filled on the 1st iteration
+         after the 1st iteration, the current tree contains 121 user commands, 1 fee transfer, 1 coinbase
+         There is now 5 slots available
+
+       - On the 2nd iteration, we apply 2 user commands.
+         With the coinbase and fee transfer, this leaves 1 empty slot in the current tree.
+         The coinbase is supposed to be split in 2, but it is not the case.
+         It always takes this branch:
+         https://github.com/MinaProtocol/mina/blob/f6756507ff7380a691516ce02a3cf7d9d32915ae/src/lib/staged_ledger/staged_ledger.ml#L1735
+
+       - The 3rd iteration applies nothing but a single coinbase, ignoring all user commands
+
+
+       Output of this test:
+       ```
+       ######## Start iteration 0 ########
+       attempt_to_apply_nuser_commands=121
+       partitions=((first (128 0)) (second ()))
+       user_commands_applied_this_iter=121
+       coinbase_count=1
+       ######## Iteration 0 done ########
+
+       ######## Start iteration 1 ########
+       attempt_to_apply_nuser_commands=2
+       partitions=((first (5 0)) (second ((123 0))))
+       incr_coinbase_and_compute called count=Two
+       res2 is_empty
+       user_commands_applied_this_iter=2
+       coinbase_count=1
+       ######## Iteration 1 done ########
+
+       ######## Start iteration 2 ########
+       attempt_to_apply_nuser_commands=17
+       partitions=((first (1 0)) (second ((127 0))))
+       user_commands_applied_this_iter=0
+       coinbase_count=1
+       ######## Iteration 2 done ########
+       ```
+     *)
+    let%test_unit "Partially filled tree, coinbase is not split in 2, and user command are ignored on 3rd iteration" =
+
+      (* Number of user command we attempt to apply per iteration *)
+      let cmds_per_iter = [
+          121; (* 121 user commands, 1 fee transfer, 1 coinbase *)
+          2; (* 2 user commands, 1 fee transfer, 1 coinbase *)
+          17; (* only 1 coinbase is applied, even though there are 17 user commands *)
+        ] in
+
+      Quickcheck.test (gen_with_ncmds_per_iter cmds_per_iter) ~trials:1
+        ~f:(fun (ledger_init_state, cmds, iters) ->
+          async_with_ledgers ledger_init_state (fun sl test_mask ->
+              test_simple
+                (init_pks ledger_init_state)
+                cmds iters sl test_mask `One_prover stmt_to_work_one_prover ) )
 
     (* let%test_unit "Be able to include random number of commands (One prover, \ *)
     (*                zkapps)" = *)
