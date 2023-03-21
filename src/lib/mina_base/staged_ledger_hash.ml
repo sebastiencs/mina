@@ -289,6 +289,29 @@ module Make_str (A : Wire_types.Concrete) = struct
 
   let of_aux_ledger_and_coinbase_hash aux_hash ledger_hash pending_coinbase : t
       =
+    let non_snark =
+      Non_snark.of_ledger_aux_coinbase_hash aux_hash ledger_hash
+        (Pending_coinbase.hash_extra pending_coinbase)
+    in
+    (* Printf.eprintf !"non_snark digest=%{sexp: Non_snark.value}\n%!" (Non_snark.digest non_snark); *)
+    Printf.eprintf !"non_snark=%{sexp: Non_snark.value}\n%!" non_snark ;
+    Printf.eprintf
+      !"non_snark digest=%{sexp: string}\n%!"
+      (Non_snark.digest non_snark) ;
+
+    let bytes = Bytes.of_string (Non_snark.pending_coinbase_aux non_snark) in
+    let explode s = List.init (String.length s) ~f:(fun i -> String.get s i) in
+    let s =
+      String.concat ~sep:","
+        (List.map
+           (explode (Bytes.to_string bytes))
+           ~f:(fun b -> string_of_int (Char.to_int b)) )
+    in
+    Printf.eprintf "pending_coinbase_aux=%s\n%!" s ;
+
+    (* /// let bytes = Bigstring.to_bytes buf in *)
+    (* /// let explode s = List.init (String.length s) ~f:(fun i -> String.get s i) in *)
+    (* /// let s = (String.concat ~sep:"," (List.map (explode (Bytes.to_string bytes)) ~f:(fun b -> string_of_int (Char.to_int b)))) in *)
     { non_snark =
         Non_snark.of_ledger_aux_coinbase_hash aux_hash ledger_hash
           (Pending_coinbase.hash_extra pending_coinbase)

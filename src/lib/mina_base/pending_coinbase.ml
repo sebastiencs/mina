@@ -1026,6 +1026,7 @@ module Make_str (A : Wire_types.Concrete) = struct
         !cached.(i)
 
     let create_exn' ~depth () =
+      (* Printf.eprintf "CREATE depth=%d\n%!" depth; *)
       let rec create_path height path key =
         if height < 0 then path
         else
@@ -1056,6 +1057,7 @@ module Make_str (A : Wire_types.Concrete) = struct
     let merkle_root (t : t) = Merkle_tree.merkle_root t.tree
 
     let get_stack (t : t) index =
+      (* Printf.eprintf "INDEX=%d\n%!" index; *)
       try_with (fun () -> Merkle_tree.get_exn t.tree index)
 
     let path (t : t) index =
@@ -1146,7 +1148,10 @@ module Make_str (A : Wire_types.Concrete) = struct
       update_stack' ~depth t ~f:(Stack.push_state state_body_hash) ~is_new_stack
 
     let update_coinbase_stack ~depth (t : t) stack ~is_new_stack =
-      update_stack' ~depth t ~f:(fun _ -> stack) ~is_new_stack
+      (* Printf.eprintf !"update_coinbase_stack=%{sexp: Stack.t} is_new_stack=%{sexp: Bool.t}\n%!" stack is_new_stack; *)
+      let res = update_stack' ~depth t ~f:(fun _ -> stack) ~is_new_stack in
+      (* Printf.eprintf !"pending_coinbase=%{sexp: t}\n%!" (Or_error.ok_exn res); *)
+      res
 
     let remove_coinbase_stack ~depth (t : t) =
       let open Or_error.Let_syntax in

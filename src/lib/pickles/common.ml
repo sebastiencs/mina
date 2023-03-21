@@ -33,6 +33,7 @@ let wrap_domains ~proofs_verified =
 let hash_messages_for_next_step_proof ~app_state
     (t : _ Types.Step.Proof_state.Messages_for_next_step_proof.t) =
   let g (x, y) = [ x; y ] in
+  Printf.eprintf "\nWEEEEEEEEEEEEEEEEESH\n%!" ;
   let open Backend in
   Tick_field_sponge.digest Tick_field_sponge.params
     (Types.Step.Proof_state.Messages_for_next_step_proof.to_field_elements t ~g

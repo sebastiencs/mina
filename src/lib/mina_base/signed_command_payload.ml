@@ -103,14 +103,35 @@ module Common = struct
 
   let to_input_legacy ({ fee; fee_payer_pk; nonce; valid_until; memo } : t) =
     let bitstring = Random_oracle.Input.Legacy.bitstring in
-    Array.reduce_exn ~f:Random_oracle.Input.Legacy.append
-      [| Currency.Fee.to_input_legacy fee
-       ; Legacy_token_id.default
-       ; Public_key.Compressed.to_input_legacy fee_payer_pk
-       ; Account_nonce.to_input_legacy nonce
-       ; Global_slot.to_input_legacy valid_until
-       ; bitstring (Memo.to_bits memo)
-      |]
+    (* let memo = (Memo.create_from_string_exn "seb") in *)
+    let result =
+      Array.reduce_exn ~f:Random_oracle.Input.Legacy.append
+        [| Currency.Fee.to_input_legacy fee
+         ; Legacy_token_id.default
+         ; Public_key.Compressed.to_input_legacy fee_payer_pk
+         ; Account_nonce.to_input_legacy nonce
+         ; Global_slot.to_input_legacy valid_until
+         ; bitstring (Memo.to_bits memo)
+        |]
+    in
+
+    (* Printf.eprintf "memo=%s\n%!" (String.concat ~sep:"" (List.map ~f:(fun b -> if b then "1" else "0") (Memo.to_bits memo))); *)
+
+    (* Printf.eprintf !"common inputs=%{sexp: (Field.t, bool) Random_oracle_input.Legacy.t}\n%!" result; *)
+
+    (* let hash = result |> Random_oracle.Legacy.pack_input |> Random_oracle.Legacy.hash ~init:Hash_prefix.receipt_chain_signed_command in *)
+    (* Printf.eprintf !"common hash=%{sexp: Field.t}\n%!" hash; *)
+
+    (* Printf.eprintf "fields=%s\n%!" *)
+    (*   (String.concat ~sep:"" (Array.map ~f:(fun b -> if b then "1" else "0") (Memo.to_bits memo))); *)
+
+    (* Printf.eprintf "memo=%s\n%!" (String.concat ~sep:"" (List.map ~f:(fun b -> Bool.to_string b) (Memo.to_bits memo))); *)
+
+    (* let memo_inputs = bitstring (Memo.to_bits memo) in *)
+    (* Printf.eprintf !"memo inputs=%{sexp: (Field.t, bool) Random_oracle_input.Legacy.t}\n%!" memo_inputs; *)
+    (* let hash = result |> Random_oracle.Legacy.pack_input |> Random_oracle.Legacy.hash ~init:Hash_prefix.receipt_chain_signed_command in *)
+    (* Printf.eprintf !"memo hash=%{sexp: Field.t}\n%!" hash; *)
+    result
 
   let gen : t Quickcheck.Generator.t =
     let open Quickcheck.Generator.Let_syntax in

@@ -129,6 +129,9 @@ module Transaction_applied = struct
           | Command of Command_applied.Stable.V2.t
           | Fee_transfer of Fee_transfer_applied.Stable.V2.t
           | Coinbase of Coinbase_applied.Stable.V2.t
+        (* | Command of (Command_applied.Stable.V2.t [@sexp.opaque]) *)
+        (* | Fee_transfer of (Fee_transfer_applied.Stable.V2.t [@sexp.opaque]) *)
+        (* | Coinbase of (Coinbase_applied.Stable.V2.t [@sexp.opaque]) *)
         [@@deriving sexp]
 
         let to_latest = Fn.id
@@ -141,6 +144,7 @@ module Transaction_applied = struct
     module V2 = struct
       type t =
         { previous_hash : Ledger_hash.Stable.V1.t
+              (* { previous_hash : (Ledger_hash.Stable.V1.t [@sexp.opaque]) *)
         ; varying : Varying.Stable.V2.t
         }
       [@@deriving sexp]
@@ -217,6 +221,16 @@ module Transaction_applied = struct
         (Currency.Amount.Signed.of_unsigned expected_supply_increase)
         [ burned_tokens; account_creation_fees ]
     in
+    Printf.eprintf
+      !"total=%{sexp: Amount.Signed.t}\n%!"
+      (Option.value_exn total) ;
+    Printf.eprintf
+      !"expected_supply_increase=%{sexp: Amount.t}\n%!"
+      expected_supply_increase ;
+    Printf.eprintf
+      !"account_creation_fees=%{sexp: Amount.Signed.t}\n%!"
+      account_creation_fees ;
+    Printf.eprintf !"burned_tokens=%{sexp: Amount.Signed.t}\n%!" burned_tokens ;
     Option.value_map total ~default:(Or_error.error_string "overflow")
       ~f:(fun v -> Ok v)
 
@@ -615,7 +629,6 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
     (* if Ledger_intf.equal_account_state action `Added then *)
     (*   Printf.eprintf "MY_LOG.TRANSACTION_LOGIC.EQUAL_ADDED %d\n%!" *)
     (*     (Amount.to_int amount) ; *)
-
     if Ledger_intf.equal_account_state action `Added then
       error_opt
         (sprintf
@@ -628,6 +641,10 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
   let check b = ksprintf (fun s -> if b then Ok () else Or_error.error_string s)
 
   let validate_nonces txn_nonce account_nonce =
+    if not (Account.Nonce.equal account_nonce txn_nonce) then
+      Printf.eprintf "nonce not ok\n%!" ;
+    (* else *)
+    (*   Printf.eprintf "nonce not ok\n%!"; *)
     check
       (Account.Nonce.equal account_nonce txn_nonce)
       !"Nonce in account %{sexp: Account.Nonce.t} different from nonce in \
@@ -710,6 +727,7 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
       validate_timing ~txn_amount:fee ~txn_global_slot:current_global_slot
         ~account
     in
+    (* Printf.eprintf !"nonce=%{sexp: Global_slot.t} next=%{sexp: Global_slot.t}\n%!" account.nonce (Account.Nonce.succ account.nonce); *)
     ( location
     , { account with
         balance
@@ -844,11 +862,11 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
           , Transaction_applied.Signed_command_applied.Body.Stake_delegation
               { previous_delegate } )
       | Payment { amount; _ } ->
-         (* Printf.eprintf "MY_LOG.getting_location\n%!"; *)
+          (* Printf.eprintf "MY_LOG.getting_location\n%!"; *)
           let receiver_location, receiver_account =
             get_with_location ledger receiver |> ok_or_reject
           in
-         (* Printf.eprintf "MY_LOG.got location\n%!"; *)
+          (* Printf.eprintf "MY_LOG.got location\n%!"; *)
           let%bind () =
             if Account.has_permission ~to_:`Receive receiver_account then Ok ()
             else Error Transaction_status.Failure.Update_not_permitted_balance
@@ -893,7 +911,8 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
                 in
                 (location, { account with timing; balance })
             in
-            if Account_id.equal fee_payer source then
+            (* Printf.eprintf !"is_equal=%{sexp: Bool.t}\n%!" (Account_id.equal fee_payer source); *)
+            if Account_id.equal fee_payer source then (
               (* Don't process transactions with insufficient balance from the
                  fee-payer.
               *)
@@ -901,10 +920,13 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
               | Ok x ->
                   Ok x
               | Error failure ->
+                  Printf.eprintf
+                    !"raised here %{sexp: Transaction_status.Failure.t}\n%!"
+                    failure ;
                   raise
                     (Reject
                        (Error.createf "%s"
-                          (Transaction_status.Failure.describe failure) ) )
+                          (Transaction_status.Failure.describe failure) ) ) )
             else ret
           in
           let%bind () =
@@ -920,8 +942,7 @@ module Make (L : Ledger_intf.S) : S with type ledger := L.t = struct
                 (*   "MY_LOG.apply_user_command_unchecked existing\n%!" ; *)
                 return amount
             | `New ->
-               (* Subtract the creation fee from the transaction amount. *)
-
+                (* Subtract the creation fee from the transaction amount. *)
                 sub_account_creation_fee ~constraint_constants `Added amount
                 |> Result.map_error ~f:(fun _ ->
                        Transaction_status.Failure

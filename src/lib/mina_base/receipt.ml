@@ -51,12 +51,16 @@ module Chain_hash = struct
 
   let cons_signed_command_payload (e : Signed_command_elt.t) (t : t) =
     let open Random_oracle.Legacy in
+    (* Printf.eprintf !"cons_signed_command_payload last=%{sexp: t}\n%!" t; *)
     let x =
       match e with
       | Signed_command_payload payload ->
+          (* Printf.eprintf !"payload=%{sexp: Signed_command.Payload.t}\n%!" payload; *)
           Transaction_union_payload.(
             to_input_legacy (of_user_command_payload payload))
     in
+    (* Printf.eprintf !"input=%{sexp: (t, bool) Input.t}\n%!" x; *)
+    (* Printf.eprintf "" *)
     Input.(append x (field (t :> Field.t)))
     |> pack_input
     |> hash ~init:Hash_prefix.receipt_chain_signed_command

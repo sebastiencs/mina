@@ -181,6 +181,7 @@ end = struct
     union (depth0 - 1) tree0 (List.rev path0)
 
   let add_path (t : t) path account_id account =
+    (* Printf.eprintf !"add_path=%{sexp: [ `Left of Hash.t | `Right of Hash.t ] list}\n%!" path; *)
     (* Printf.eprintf "add_path called\n%!" ; *)
     let index =
       List.foldi path ~init:0 ~f:(fun i acc x ->

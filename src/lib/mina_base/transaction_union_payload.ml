@@ -165,14 +165,25 @@ module Body = struct
   let to_input_legacy
       { tag; source_pk; receiver_pk; token_id; amount; token_locked } =
     assert (Token_id.equal token_id Token_id.default) ;
-    Array.reduce_exn ~f:Random_oracle.Input.Legacy.append
-      [| Tag.to_input_legacy tag
-       ; Public_key.Compressed.to_input_legacy source_pk
-       ; Public_key.Compressed.to_input_legacy receiver_pk
-       ; Signed_command_payload.Legacy_token_id.default
-       ; Currency.Amount.to_input_legacy amount
-       ; Random_oracle.Input.Legacy.bitstring [ token_locked ]
-      |]
+    (* Printf.eprintf !"TAG=%{sexp: Tag.t}\n%!" tag; *)
+    (* let a = Tag.to_input_legacy tag in *)
+    (* Printf.eprintf !"tag input=%{sexp: (Field.t, bool) Random_oracle_input.Legacy.t}\n%!" a; *)
+    let res =
+      Array.reduce_exn ~f:Random_oracle.Input.Legacy.append
+        [| Tag.to_input_legacy tag
+         ; Public_key.Compressed.to_input_legacy source_pk
+         ; Public_key.Compressed.to_input_legacy receiver_pk
+         ; Signed_command_payload.Legacy_token_id.default
+         ; Currency.Amount.to_input_legacy amount
+         ; Random_oracle.Input.Legacy.bitstring [ token_locked ]
+        |]
+    in
+
+    (* Printf.eprintf !"body inputs=%{sexp: (Field.t, bool) Random_oracle_input.Legacy.t}\n%!" res; *)
+
+    (* let hash = res |> Random_oracle.Legacy.pack_input |> Random_oracle.Legacy.hash ~init:Hash_prefix.receipt_chain_signed_command in *)
+    (* Printf.eprintf !"body hash=%{sexp: Field.t}\n%!" hash; *)
+    res
 end
 
 module Payload_common = struct

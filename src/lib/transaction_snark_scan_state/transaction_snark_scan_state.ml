@@ -41,11 +41,17 @@ module Transaction_with_witness = struct
         { transaction_with_info :
             Mina_transaction_logic.Transaction_applied.Stable.V2.t
         ; state_hash : State_hash.Stable.V1.t * State_body_hash.Stable.V1.t
+              (* ; state_hash : (State_hash.Stable.V1.t * State_body_hash.Stable.V1.t [@sexp.opaque]) *)
         ; statement : Transaction_snark.Statement.Stable.V2.t
+              (* ; statement : (Transaction_snark.Statement.Stable.V2.t [@sexp.opaque]) *)
         ; init_stack :
             Transaction_snark.Pending_coinbase_stack_state.Init_stack.Stable.V1
             .t
-        ; ledger_witness : Mina_ledger.Sparse_ledger.Stable.V2.t [@sexp.opaque]
+              (* ; init_stack : *)
+              (*     (Transaction_snark.Pending_coinbase_stack_state.Init_stack.Stable.V1 *)
+              (*     .t [@sexp.opaque]) *)
+        ; ledger_witness : Mina_ledger.Sparse_ledger.Stable.V2.t
+              (* ; ledger_witness : (Mina_ledger.Sparse_ledger.Stable.V2.t [@sexp.opaque]) *)
         }
       [@@deriving sexp]
 
@@ -143,6 +149,42 @@ module Job_view = struct
             ]
     in
     `List [ `Int position; job_to_yojson ]
+
+  let to_compact_yojson ({ value; position } : t) : Yojson.Safe.t =
+    let module R = struct
+      type t =
+        ( Frozen_ledger_hash.t
+        , Pending_coinbase.Stack_versioned.t
+        , Mina_state.Local_state.t )
+        Mina_state.Registers.t
+      [@@deriving to_yojson]
+    end in
+    let _statement_to_yojson (s : Transaction_snark.Statement.t) =
+      `Int (Transaction_snark.Statement.hash s)
+    in
+    match value with
+    | BEmpty ->
+        `List [ `Int position; `String "B_Empty" ]
+    | MEmpty ->
+        `List [ `Int position; `String "M_Empty" ]
+    | MPart _x ->
+        `List [ `Int position; `String "M_Part" ]
+        (* `List [ `Int position; `String "M_Part"; `List [ statement_to_yojson x ] ] *)
+    | MFull (_x, _y, { seq_no; status }) ->
+        `List
+          [ `Int position
+          ; `String "M_Full"
+            (* ; `List [ statement_to_yojson x; statement_to_yojson y ] *)
+          ; `Int seq_no
+          ; `String (Parallel_scan.Job_status.to_string status)
+          ]
+    | BFull (_x, { seq_no; status }) ->
+        `List
+          [ `Int position
+          ; `String "B_Full" (* ; statement_to_yojson x *)
+          ; `Int seq_no
+          ; `String (Parallel_scan.Job_status.to_string status)
+          ]
 end
 
 type job = Available_job.t [@@deriving sexp]
@@ -185,6 +227,7 @@ let create_expected_statement ~constraint_constants
     Frozen_ledger_hash.of_ledger_hash
     @@ Sparse_ledger.merkle_root ledger_witness
   in
+  (* Core.Printf.eprintf !"state_hash=%{sexp: (Frozen_ledger_hash.t * Frozen_ledger_hash.t)}\n\n%!" state_hash; *)
   let { With_status.data = transaction; status = _ } =
     Ledger.Transaction_applied.transaction transaction_with_info
   in
@@ -286,8 +329,9 @@ let total_proofs (works : Transaction_snark_work.t list) =
 (*************exposed functions*****************)
 
 module P = struct
-  type t = Ledger_proof_with_sok_message.t
+  type t = (Ledger_proof_with_sok_message.t[@sexp.opaque]) [@@deriving sexp]
 end
+(* { job : ('base [@sexp.opaque]) *)
 
 module Make_statement_scanner (Verifier : sig
   type t
@@ -297,7 +341,7 @@ end) =
 struct
   module Fold = Parallel_scan.State.Make_foldable (Deferred)
 
-  let logger = lazy (Logger.create ())
+  (* let logger = lazy (Logger.create ()) *)
 
   module Timer = struct
     module Info = struct
@@ -340,13 +384,13 @@ struct
             Info.update acc elapsed ) ;
       x
 
-    let log label (t : t) =
-      let logger = Lazy.force logger in
-      [%log debug]
-        ~metadata:
-          (List.map (Hashtbl.to_alist t) ~f:(fun (k, info) ->
-               (k, Info.to_yojson info) ) )
-        "%s timing" label
+    let log _label (_t : t) = ignore ()
+    (* let logger = Lazy.force logger in *)
+    (* [%log warn] *)
+    (*   ~metadata: *)
+    (*     (List.map (Hashtbl.to_alist t) ~f:(fun (k, info) -> *)
+    (*          (k, Info.to_yojson info) ) ) *)
+    (*   "%s timing" label *)
   end
 
   (*TODO: fold over the pending_coinbase tree and validate the statements?*)
@@ -433,6 +477,7 @@ struct
           in
           (acc_stmt, acc_pc)
     in
+
     let fold_step_d (acc_statement, acc_pc) job =
       match job with
       | Parallel_scan.Base.Job.Empty ->
@@ -484,6 +529,7 @@ struct
                        %{sexp:Transaction_snark.Statement.t}"
                      transaction.statement expected_statement ) )
     in
+
     let%bind.Deferred res =
       Fold.fold_chronological_until tree ~init:(None, None)
         ~f_merge:(fun acc (_weight, job) ->
@@ -694,6 +740,19 @@ let snark_job_list_json t =
       (List.map all_jobs ~f:(fun tree ->
            `List (List.map tree ~f:Job_view.to_yojson) ) ) )
 
+let snark_job_list_compact_yojson t =
+  let all_jobs : Job_view.t list list =
+    let fa (a : Ledger_proof_with_sok_message.t) =
+      Ledger_proof.statement (fst a)
+    in
+    let fd (d : Transaction_with_witness.t) = d.statement in
+    Parallel_scan.view_jobs_with_position t fa fd
+  in
+  Yojson.Safe.to_string
+    (`List
+      (List.map all_jobs ~f:(fun tree ->
+           `List (List.map tree ~f:Job_view.to_compact_yojson) ) ) )
+
 (*Always the same pairing of jobs*)
 let all_work_statements_exn t : Transaction_snark_work.Statement.t list =
   let work_seqs = all_jobs t in
@@ -813,9 +872,12 @@ let fill_work_and_enqueue_transactions t transactions work =
   in
   let old_proof = Parallel_scan.last_emitted_value t in
   let%bind work_list = fill_in_transaction_snark_work t work in
+  Core.Printf.eprintf "work_list_len=%d transactions_len=%d\n%!"
+    (List.length work_list) (List.length transactions) ;
   let%bind proof_opt, updated_scan_state =
     Parallel_scan.update t ~completed_jobs:work_list ~data:transactions
   in
+  (* Core.Printf.eprintf !"new_scan_state=%{sexp: (P.t, Transaction_with_witness.t) Parallel_scan.State.t}\n%!" updated_scan_state; *)
   let%map result_opt =
     Option.value_map ~default:(Ok None) proof_opt
       ~f:(fun ((proof, _), txns_with_witnesses) ->

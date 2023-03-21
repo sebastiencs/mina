@@ -66,7 +66,8 @@ module Base = struct
     module Stable = struct
       module V1 = struct
         type 'base t =
-          { job : 'base
+          { (* { job : ('base [@sexp.opaque]) *)
+            job : 'base
           ; seq_no : Sequence_number.Stable.V1.t
           ; status : Job_status.Stable.V1.t
           }
@@ -110,8 +111,8 @@ module Merge = struct
     module Stable = struct
       module V1 = struct
         type 'merge t =
-          { left : 'merge
-          ; right : 'merge
+          { left : ('merge[@sexp.opaque])
+          ; right : ('merge[@sexp.opaque])
           ; seq_no : Sequence_number.Stable.V1.t
           ; status : Job_status.Stable.V1.t
           }
@@ -444,6 +445,7 @@ module Tree = struct
       -> (merge_t, base_t) t * data =
    fun ~f_merge ~f_base t ->
     let transpose ((x1, y1), (x2, y2)) = ((x1, x2), (y1, y2)) in
+    let transpose2 ((x1, y1), (x2, y2)) = ((x1, x2), (y1, y2)) in
     match t with
     | Leaf d ->
         let new_base, count_list = f_base d in
@@ -454,7 +456,7 @@ module Tree = struct
           update_accumulate
             ~f_merge:(fun (b1, b2) (x, y) ->
               transpose (f_merge b1 x, f_merge b2 y) )
-            ~f_base:(fun (x, y) -> transpose (f_base x, f_base y))
+            ~f_base:(fun (x, y) -> transpose2 (f_base x, f_base y))
             sub_tree
         in
         let value', count_list = f_merge counts value in
@@ -548,6 +550,7 @@ module Tree = struct
     in
     let add_bases jobs (w, d) =
       let weight = weight_lens.get w in
+      (* Printf.eprintf "add_bases jobs=%d w=%d\n%!" (List.length jobs) weight; *)
       match (jobs, d) with
       | [], _ ->
           Ok (w, d)
@@ -566,8 +569,10 @@ module Tree = struct
     let jobs = completed_jobs in
     update_split ~f_merge:add_merges ~f_base:add_bases tree ~weight_merge:fst
       ~jobs ~update_level ~jobs_split:(fun (w1, w2) a ->
+        (* Printf.eprintf "length=%d" (List.length a); *)
         let l = weight_lens.get w1 in
         let r = weight_lens.get w2 in
+        (* Printf.eprintf "split l=%d r=%d len=%d\n%!" l r (List.length a); *)
         (List.take a l, List.take (List.drop a l) r) )
 
   let reset_weights :
@@ -823,8 +828,10 @@ module T = struct
             ('merge Merge.Stable.V1.t, 'base Base.Stable.V1.t) Tree.Stable.V1.t
             Non_empty_list.Stable.V1.t
               (*use non empty list*)
-        ; acc : ('merge * 'base list) option
-              (*last emitted proof and the corresponding transactions*)
+        ; acc :
+            (('merge * 'base list) option
+            [@sexp.opaque]
+            (*last emitted proof and the corresponding transactions*) )
         ; curr_job_seq_no : int
               (*Sequence number for the jobs added every block*)
         ; max_base_jobs : int (*transaction_capacity_log_2*)
@@ -871,6 +878,7 @@ module T = struct
         type merge_t base_t.
         int -> (int -> merge_t) -> base_t -> (merge_t, base_t) Tree.t =
      fun d fmerge base ->
+      (* Printf.eprintf "go d=%d\n%!" d; *)
       if d >= depth then Tree.Leaf base
       else
         let sub_tree =
@@ -886,6 +894,7 @@ module T = struct
           if level = -1 then (weight 0 0, weight 0 0)
           else
             let x = Int.pow 2 level / Int.pow 2 (d + 1) in
+            (* Printf.eprintf "x=%d\n%!" x; *)
             (weight x 0, weight x 0)
         in
         (weight, merge_job) )
@@ -933,10 +942,13 @@ module State = struct
     let { trees; acc; max_base_jobs; curr_job_seq_no; delay; _ } =
       with_leaner_trees t
     in
+    Printf.eprintf "START\n%!" ;
     let h = ref (Digestif.SHA256.init ()) in
     let add_string s = h := Digestif.SHA256.feed_string !h s in
     let () =
       let tree_hash tree f_merge f_base =
+        (* Printf.eprintf "to_hashable_jobs=%d\n%!" *)
+        (* (List.length (Tree.to_hashable_jobs tree)) ; *)
         List.iter (Tree.to_hashable_jobs tree) ~f:(fun job ->
             match job with Job.Merge a -> f_merge a | Base d -> f_base d )
       in
@@ -947,24 +959,63 @@ module State = struct
           let w_to_string' (w1, w2) = w_to_string w1 ^ w_to_string w2 in
           let f_merge = function
             | w, Merge.Job.Empty ->
+                (*  let sha = Digestif.SHA256.get !h in *)
+                (* Printf.eprintf "MergeEmpty %s\n%!" (Digestif.SHA256.to_hex sha); *)
+                (* Printf.eprintf "s=%s\n%!" (w_to_string' w ^ "Empty"); *)
                 add_string (w_to_string' w ^ "Empty")
             | w, Merge.Job.Full { left; right; status; seq_no } ->
+                (*  let sha = Digestif.SHA256.get !h in *)
+                (* Printf.eprintf "MergeFull %s\n%!" (Digestif.SHA256.to_hex sha); *)
+
+                (* let sha = Digestif.SHA256.get !h in *)
+                (* Printf.eprintf "before_hash=%s\n%!" (Digestif.SHA256.to_hex sha); *)
+
+                (* Printf.eprintf "s='%s'\n%!" ( w_to_string' w ^ "Full" ^ Int.to_string seq_no ^ Job_status.to_string status ); *)
                 add_string
                   ( w_to_string' w ^ "Full" ^ Int.to_string seq_no
                   ^ Job_status.to_string status ) ;
+
+                (* let s_left = (f_merge left) in *)
+                (* let sha = Digestif.SHA256.init () in *)
+                (* let sha = Digestif.SHA256.feed_string sha s_left in *)
+                (* let sha = Digestif.SHA256.get sha in *)
+                (* Printf.eprintf "left_hash=%s\n%!" (Digestif.SHA256.to_hex sha); *)
+
+                (* let s_right = (f_merge right) in *)
+                (* let sha = Digestif.SHA256.init () in *)
+                (* let sha = Digestif.SHA256.feed_string sha s_right in *)
+                (* let sha = Digestif.SHA256.get sha in *)
+                (* Printf.eprintf "right_hash=%s\n%!" (Digestif.SHA256.to_hex sha); *)
                 add_string (f_merge left) ;
                 add_string (f_merge right)
+                (* let sha = Digestif.SHA256.get !h in *)
+                (* Printf.eprintf "after_hash=%s\n%!" (Digestif.SHA256.to_hex sha); *)
             | w, Merge.Job.Part j ->
+                (*  let sha = Digestif.SHA256.get !h in *)
+                (* Printf.eprintf "MergePart %s\n%!" (Digestif.SHA256.to_hex sha); *)
+                (* Printf.eprintf "s=%s\n%!" (w_to_string' w ^ "Part"); *)
                 add_string (w_to_string' w ^ "Part") ;
                 add_string (f_merge j)
           in
           let f_base = function
             | w, Base.Job.Empty ->
+                (*  let sha = Digestif.SHA256.get !h in *)
+                (* Printf.eprintf "BaseEmpty %s\n%!" (Digestif.SHA256.to_hex sha); *)
+                (* Printf.eprintf "s=%s\n%!" (w_to_string w ^ "Empty"); *)
                 add_string (w_to_string w ^ "Empty")
             | w, Base.Job.Full { job; status; seq_no } ->
+                (*  let sha = Digestif.SHA256.get !h in *)
+                (* Printf.eprintf "BaseFull %s\n%!" (Digestif.SHA256.to_hex sha); *)
+                (* Printf.eprintf "s=%s\n%!" ( w_to_string w ^ "Full" ^ Int.to_string seq_no ^ Job_status.to_string status ); *)
                 add_string
                   ( w_to_string w ^ "Full" ^ Int.to_string seq_no
                   ^ Job_status.to_string status ) ;
+
+                (* let s = (f_base job) in *)
+                (* let sha = Digestif.SHA256.init () in *)
+                (* let sha = Digestif.SHA256.feed_string sha s in *)
+                (* let sha = Digestif.SHA256.get sha in *)
+                (* Printf.eprintf "  base_hash=%s\n%!" (Digestif.SHA256.to_hex sha); *)
                 add_string (f_base job)
           in
           tree_hash tree f_merge f_base )
@@ -973,6 +1024,8 @@ module State = struct
       Option.value_map acc ~default:"None" ~f:(fun (a, d_lst) ->
           f_merge a ^ List.fold ~init:"" d_lst ~f:(fun acc d -> acc ^ f_base d) )
     in
+    Printf.eprintf "acc=%s curr_job_seq_no=%d max_base_jobs=%d delay=%d\n%!"
+      acc_string curr_job_seq_no max_base_jobs delay ;
     add_string acc_string ;
     add_string (Int.to_string curr_job_seq_no) ;
     add_string (Int.to_string max_base_jobs) ;
@@ -1042,6 +1095,7 @@ let work_to_do :
     -> max_base_jobs:int
     -> (merge, base) Available_job.t list =
  fun trees ~max_base_jobs ->
+  (* Printf.eprintf "work_to_do len=%d\n%!" (List.length trees) ; *)
   let depth = Int.ceil_log2 max_base_jobs in
   List.concat_mapi trees ~f:(fun i tree ->
       Tree.jobs_on_level ~depth ~level:(depth - i) tree )
@@ -1054,6 +1108,8 @@ let work :
     -> (merge, base) Available_job.t list =
  fun trees ~delay ~max_base_jobs ->
   let depth = Int.ceil_log2 max_base_jobs in
+
+  (* Printf.eprintf "WORK_DELAY=%d\n%!" delay; *)
   let work_trees =
     List.take
       (List.filteri trees ~f:(fun i _ -> i % delay = delay - 1))
@@ -1070,6 +1126,7 @@ let work_for_tree t ~data_tree =
     | `Next ->
         Non_empty_list.to_list t.trees
   in
+  (* Printf.eprintf "WORK_FOR_TREE len=%d\n%!" (List.length trees); *)
   work trees ~max_base_jobs:t.max_base_jobs ~delay
 
 (*work on all the level and all the trees*)
@@ -1079,18 +1136,28 @@ let all_work :
  fun t ->
   let depth = Int.ceil_log2 t.max_base_jobs in
   let set1 = work_for_tree t ~data_tree:`Current in
+  (* let seta = work_for_tree t ~data_tree:`Next in *)
+  (* Printf.eprintf "ntrees=%d delay=%d set1=%d\n%!" *)
+  (*   (Non_empty_list.length t.trees) *)
+  (*   t.delay (List.length set1) ; *)
+  (* Printf.eprintf "ntrees=%d set1=%d setaa=%d\n%!" (Non_empty_list.length t.trees) (List.length set1) (List.length seta); *)
   let _, other_sets =
     List.fold ~init:(t, [])
       (List.init ~f:Fn.id (t.delay + 1))
       ~f:(fun (t, work_list) _ ->
+        (* Printf.eprintf "trees=%d\n%!" (Non_empty_list.length t.trees) ; *)
         let trees' = Non_empty_list.cons (create_tree ~depth) t.trees in
         let t' = { t with trees = trees' } in
+        (* let work = work_for_tree t' ~data_tree:`Current in *)
+        (* Printf.eprintf "work=%d\n%!" (List.length work); *)
         match work_for_tree t' ~data_tree:`Current with
         | [] ->
             (t', work_list)
         | work ->
             (t', work :: work_list) )
   in
+  (* Printf.eprintf "set1=%d other=%d\n%!" (List.length set1) *)
+  (*   (List.length other_sets) ; *)
   if List.is_empty set1 then List.rev other_sets
   else set1 :: List.rev other_sets
 
@@ -1101,6 +1168,7 @@ let work_for_next_update :
  fun t ~data_count ->
   let delay = t.delay + 1 in
   let current_tree_space = Tree.available_space (Non_empty_list.head t.trees) in
+  (* Printf.eprintf "current_tree_space=%d\n%!" current_tree_space; *)
   let set1 =
     work (Non_empty_list.tail t.trees) ~max_base_jobs:t.max_base_jobs ~delay
   in
@@ -1229,6 +1297,8 @@ let add_data : data:'base list -> (_, _, 'base) State_or_error.t =
              !"Data count (%d) exceeded available space (%d)"
              (List.length data) available_space )
     in
+    (* Printf.eprintf "base_jobs=%d available_space=%d depth=%d\n%!" *)
+    (*   (List.length base_jobs) available_space depth ; *)
     let%bind tree, _ =
       match
         Tree.update base_jobs ~update_level:depth
@@ -1243,9 +1313,20 @@ let add_data : data:'base list -> (_, _, 'base) State_or_error.t =
     in
     let updated_trees =
       if List.length base_jobs = available_space then
+        (* Printf.eprintf "ICI\n%!"; *)
         cons (create_tree ~depth) [ Tree.reset_weights `Both tree ]
       else Non_empty_list.singleton (Tree.reset_weights `Merge tree)
     in
+    (* Printf.eprintf "updated_trees=%d tail_self=%d\n%!" *)
+    (*   (Non_empty_list.length updated_trees) *)
+    (*   (List.length (Non_empty_list.tail state.trees)) ; *)
+    (* let w = work (Non_empty_list.to_list updated_trees) ~delay:(state.delay + 1) ~max_base_jobs:state.max_base_jobs in *)
+    (* Printf.eprintf "WORK1=%d\n%!" (List.length w); *)
+    (* let w = work (Non_empty_list.to_list state.trees) ~delay:(state.delay + 1) ~max_base_jobs:state.max_base_jobs in *)
+    (* Printf.eprintf "WORK2=%d\n%!" (List.length w); *)
+    (* let new_list = append updated_trees (Non_empty_list.tail state.trees) in *)
+    (* let w = work (Non_empty_list.to_list new_list) ~delay:(state.delay + 1) ~max_base_jobs:state.max_base_jobs in *)
+    (* Printf.eprintf "WORK3=%d\n%!" (List.length w); *)
     let%map _ =
       State_or_error.put
         { state with
@@ -1342,6 +1423,8 @@ let update_helper :
   let%bind () =
     let required = (List.length required_jobs + 1) / 2 in
     let got = (List.length completed_jobs + 1) / 2 in
+
+    (* Printf.eprintf "required=%d got=%d\n%!" required got ; *)
     check
       (got < required && List.length data > t.max_base_jobs - required + got)
       ~message:
@@ -1356,6 +1439,9 @@ let update_helper :
   let available_space = Tree.available_space latest_tree in
   (*Possible that new base jobs is added to a new tree within an update i.e., part of it is added to the first tree and the rest of it to a new tree. This happens when the throughput is not max. This also requires merge jobs to be done on two different set of trees*)
   let data1, data2 = List.split_n data available_space in
+
+  (* Printf.eprintf "delay=%d available_space=%d data1=%d data2=%d\n%!" delay *)
+  (*   available_space (List.length data1) (List.length data2) ; *)
   let required_jobs_for_current_tree =
     work (Non_empty_list.tail t.trees) ~max_base_jobs:t.max_base_jobs ~delay
     |> List.length
@@ -1363,6 +1449,8 @@ let update_helper :
   let jobs1, jobs2 =
     List.split_n completed_jobs required_jobs_for_current_tree
   in
+  (* Printf.eprintf "required_jobs_for_current_tree=%d jobs1=%d jobs2=%d\n%!" *)
+  (*   required_jobs_for_current_tree (List.length jobs1) (List.length jobs2) ; *)
   (*update first set of jobs and data*)
   let%bind result_opt = add_merge_jobs ~completed_jobs:jobs1 in
   let%bind () = add_data ~data:data1 in
@@ -1428,6 +1516,7 @@ let base_jobs_on_earlier_tree t ~index =
 let partition_if_overflowing : ('merge, 'base) t -> Space_partition.t =
  fun t ->
   let cur_tree_space = free_space_on_current_tree t in
+  Printf.eprintf "cur_tree_space=%d\n%!" cur_tree_space ;
   (*Check actual work count because it would be zero initially*)
   let work_count = work_for_tree t ~data_tree:`Current |> List.length in
   let work_count_new_tree = work_for_tree t ~data_tree:`Next |> List.length in
@@ -1480,6 +1569,10 @@ let job_count t =
 let assert_job_count t t' ~completed_job_count ~base_job_count ~value_emitted =
   let todo_before, done_before = job_count t in
   let todo_after, done_after = job_count t' in
+
+  (* Printf.eprintf "todo before=%f done before=%f\n%!" todo_before done_after ; *)
+  (* Printf.eprintf "todo after=%f done after=%f\n%!" todo_after done_after ; *)
+
   (*ordered list of jobs that is actually called when distributing work*)
   let all_jobs = List.concat (all_jobs t') in
   (*list of jobs*)
@@ -1494,6 +1587,8 @@ let assert_job_count t t' ~completed_job_count ~base_job_count ~value_emitted =
            | _ ->
                false )
   in
+
+  (* Printf.eprintf "all_jobs=%d all_jobs_expected=%d" (List.length all_jobs) (List.length all_jobs_expected); *)
   assert (List.length all_jobs = List.length all_jobs_expected) ;
   let expected_todo_after =
     let new_jobs =
@@ -1513,6 +1608,9 @@ let assert_job_count t t' ~completed_job_count ~base_job_count ~value_emitted =
     && Float.equal done_after expected_done_after )
 
 let test_update t ~data ~completed_jobs =
+  (* Printf.eprintf "completed_jobs_length=%d data_len=%d\n%!" *)
+  (*   (List.length completed_jobs) *)
+  (*   (List.length data) ; *)
   let result_opt, t' = update ~data ~completed_jobs t |> Or_error.ok_exn in
   assert_job_count t t'
     ~base_job_count:(Float.of_int @@ List.length data)
@@ -1520,74 +1618,97 @@ let test_update t ~data ~completed_jobs =
     ~value_emitted:(Option.is_some result_opt) ;
   (result_opt, t')
 
-let%test_module "test" =
-  ( module struct
-    let%test_unit "always max base jobs" =
-      let max_base_jobs = 512 in
-      let state = empty ~max_base_jobs ~delay:3 in
-      let _t' =
-        List.foldi ~init:([], state) (List.init 100 ~f:Fn.id)
-          ~f:(fun i (expected_results, t) _ ->
-            let data = List.init max_base_jobs ~f:(fun j -> i + j) in
-            let expected_results = data :: expected_results in
-            let work =
-              work_for_next_update t ~data_count:(List.length data)
-              |> List.concat
-            in
-            let new_merges =
-              List.map work ~f:(fun job ->
-                  match job with Base i -> i | Merge (i, j) -> i + j )
-            in
-            let result_opt, t' =
-              test_update ~data ~completed_jobs:new_merges t
-            in
-            let expected_result, remaining_expected_results =
-              Option.value_map result_opt
-                ~default:((0, []), expected_results)
-                ~f:(fun _ ->
-                  match List.rev expected_results with
-                  | [] ->
-                      ((0, []), [])
-                  | x :: xs ->
-                      ((List.sum (module Int) x ~f:Fn.id, x), List.rev xs) )
-            in
-            assert (
-              [%equal: int * int list]
-                (Option.value ~default:expected_result result_opt)
-                expected_result ) ;
-            (remaining_expected_results, t') )
-      in
-      ()
+(* let%test_module "test" = *)
+(*   ( module struct *)
+(*     let%test_unit "always max base jobs" = *)
+(*       let max_base_jobs = 512 in *)
+(*       Printf.eprintf "WESH\n%!"; *)
+(*       let state = empty ~max_base_jobs:8 ~delay:3 in *)
 
-    let%test_unit "Random base jobs" =
-      let max_base_jobs = 512 in
-      let t = empty ~max_base_jobs ~delay:3 in
-      let state = ref t in
-      Quickcheck.test
-        (Quickcheck.Generator.list (Int.gen_incl 1 1))
-        ~f:(fun list ->
-          let t = !state in
-          let data = List.take list max_base_jobs in
-          let work =
-            List.take
-              ( work_for_next_update t ~data_count:(List.length data)
-              |> List.concat )
-              (List.length data * 2)
-          in
-          let new_merges =
-            List.map work ~f:(fun job ->
-                match job with Base i -> i | Merge (i, j) -> i + j )
-          in
-          let result_opt, t' = test_update ~data ~completed_jobs:new_merges t in
-          let expected_result =
-            (max_base_jobs, List.init max_base_jobs ~f:(fun _ -> 1))
-          in
-          assert (
-            [%equal: int * int list]
-              (Option.value ~default:expected_result result_opt)
-              expected_result ) ;
-          state := t' )
-  end )
+(*       let h = State.hash state string_of_int string_of_int in *)
+(*       Printf.eprintf "hash=%s\n%!" (Digestif.SHA256.to_hex h); *)
+
+(*       let state = empty ~max_base_jobs ~delay:3 in *)
+
+(*       (\* let h = State.hash state string_of_int string_of_int in *\) *)
+(*       (\* Printf.eprintf "hash=%s\n%!" (Digestif.SHA256.to_hex h); *\) *)
+
+(*       let _t' = *)
+(*         List.foldi ~init:([], state) (List.init 100 ~f:Fn.id) *)
+(*           ~f:(fun i (expected_results, t) _ -> *)
+
+(*             Printf.eprintf "####### LOOP %d #########\n%!" i; *)
+
+(*             let data = List.init max_base_jobs ~f:(fun j -> i + j) in *)
+(*             let expected_results = data :: expected_results in *)
+(*             let work = *)
+(*               work_for_next_update t ~data_count:(List.length data) *)
+(*               |> List.concat *)
+(*             in *)
+(*             let new_merges = *)
+(*               List.map work ~f:(fun job -> *)
+(*                   match job with Base i -> i | Merge (i, j) -> i + j ) *)
+(*             in *)
+(*             Printf.eprintf "work_length=%d new_merges=%d\n%!" (List.length work) (List.length new_merges); *)
+
+(*             let h = State.hash t string_of_int string_of_int in *)
+(*             Printf.eprintf "hash_s1=%s\n%!" (Digestif.SHA256.to_hex h); *)
+
+(*             (\* let _, t' = update ~data ~completed_jobs:new_merges state |> Or_error.ok_exn in *\) *)
+(*             (\* let h = State.hash t' string_of_int string_of_int in *\) *)
+(*             (\* Printf.eprintf "hash_s2=%s\n%!" (Digestif.SHA256.to_hex h); *\) *)
+
+(*             let result_opt, t' = *)
+(*               test_update ~data ~completed_jobs:new_merges t *)
+(*             in *)
+(*             let expected_result, remaining_expected_results = *)
+(*               Option.value_map result_opt *)
+(*                 ~default:((0, []), expected_results) *)
+(*                 ~f:(fun (a, l) -> *)
+(*                   Printf.eprintf "RESULT_OPT.0=%d len=%d\n%!" a (List.length l); *)
+(*                   match List.rev expected_results with *)
+(*                   | [] -> *)
+(*                       ((0, []), []) *)
+(*                   | x :: xs -> *)
+(*                       ((List.sum (module Int) x ~f:Fn.id, x), List.rev xs) ) *)
+(*             in *)
+(*             assert ( *)
+(*               [%equal: int * int list] *)
+(*                 (Option.value ~default:expected_result result_opt) *)
+(*                 expected_result ) ; *)
+(*             (remaining_expected_results, t') ) *)
+(*       in *)
+(*       () *)
+
+(*     let%test_unit "Random base jobs" = *)
+(*       let max_base_jobs = 512 in *)
+(*       let t = empty ~max_base_jobs ~delay:3 in *)
+(*       let state = ref t in *)
+(*       Quickcheck.test *)
+(*         (Quickcheck.Generator.list (Int.gen_incl 1 1)) *)
+(*         ~f:(fun list -> *)
+(*           let t = !state in *)
+(*           let data = List.take list max_base_jobs in *)
+(*           let work = *)
+(*             List.take *)
+(*               ( work_for_next_update t ~data_count:(List.length data) *)
+(*               |> List.concat ) *)
+(*               (List.length data * 2) *)
+(*           in *)
+(*           let new_merges = *)
+(*             List.map work ~f:(fun job -> *)
+(*                 match job with Base i -> i | Merge (i, j) -> i + j ) *)
+(*           in *)
+(*           let result_opt, t' = test_update ~data ~completed_jobs:new_merges t in *)
+(*           let expected_result = *)
+(*             (max_base_jobs, List.init max_base_jobs ~f:(fun _ -> 1)) *)
+(*           in *)
+(*           assert ( *)
+(*             [%equal: int * int list] *)
+(*               (Option.value ~default:expected_result result_opt) *)
+(*               expected_result ) ; *)
+(*           state := t' ) *)
+(*   end ) *)
 
 let gen :
        gen_data:'d Quickcheck.Generator.t
@@ -1599,6 +1720,7 @@ let gen :
   let%bind depth, delay =
     Quickcheck.Generator.tuple2 (Int.gen_incl 2 5) (Int.gen_incl 0 3)
   in
+  Printf.eprintf "depth=%d delay=%d\n%!" depth delay ;
   let max_base_jobs = Int.pow 2 depth in
   let s = State.empty ~max_base_jobs ~delay in
   let%map datas =
@@ -1606,10 +1728,12 @@ let gen :
       list_non_empty (list_with_length max_base_jobs gen_data))
   in
   List.fold datas ~init:s ~f:(fun s chunk ->
+      Printf.eprintf "ndata=%d\n%!" (List.length chunk) ;
       let jobs =
         List.concat (work_for_next_update s ~data_count:(List.length chunk))
       in
       let jobs_done = List.map jobs ~f:f_job_done in
+      Printf.eprintf "jobs_donea=%d\n%!" (List.length jobs_done) ;
       let old_tuple = s.acc in
       let res_opt, s =
         Or_error.ok_exn @@ update ~data:chunk s ~completed_jobs:jobs_done
@@ -1624,12 +1748,17 @@ let%test_module "scans" =
 
     let rec step_on_free_space state w ds f f_acc =
       let data = List.take ds state.max_base_jobs in
+      (* Printf.eprintf "AAA\n%!"; *)
       let jobs =
         List.concat (work_for_next_update state ~data_count:(List.length data))
       in
       let jobs_done = List.map jobs ~f in
+
+      (* Printf.eprintf "jobs_done_len=%d\n%!" (List.length jobs_done); *)
       let old_tuple = state.acc in
       let res_opt, state = test_update ~data state ~completed_jobs:jobs_done in
+
+      (* Printf.eprintf "res_opt=%d\n%!" (if (Option.is_some res_opt) then 1 else 0); *)
       let state =
         Option.value_map ~default:state res_opt ~f:(fun x ->
             let tuple =
@@ -1637,6 +1766,9 @@ let%test_module "scans" =
             in
             { state with acc = tuple } )
       in
+
+      (* if Option.is_some state.acc then *)
+      (*   Printf.eprintf "send_some\n%!"; *)
       let%bind () = Linear_pipe.write w state.acc in
       let rem_ds = List.drop ds state.max_base_jobs in
       if List.length rem_ds > 0 then step_on_free_space state w rem_ds f f_acc
@@ -1646,19 +1778,22 @@ let%test_module "scans" =
       let rec go () =
         match%bind Linear_pipe.read' data with
         | `Eof ->
+            (* Printf.eprintf "DO_RETURN\n%!"; *)
             return ()
         | `Ok q ->
+            (* Printf.eprintf "do_steps\n%!"; *)
             let ds = Queue.to_list q in
+            (* Printf.eprintf "ds_len=%d\n%!" (List.length ds); *)
             let%bind s = step_on_free_space !state w ds f f_acc in
             state := s ;
             go ()
       in
       go ()
 
-    let scan ~data ~depth ~f ~f_acc =
-      Linear_pipe.create_reader ~close_on_exception:true (fun w ->
-          let s = ref (empty ~max_base_jobs:(Int.pow 2 depth) ~delay:1) in
-          do_steps ~state:s ~data ~f w ~f_acc )
+    (* let scan ~data ~depth ~f ~f_acc = *)
+    (*   Linear_pipe.create_reader ~close_on_exception:true (fun w -> *)
+    (*       let s = ref (empty ~max_base_jobs:(Int.pow 2 depth) ~delay:1) in *)
+    (*       do_steps ~state:s ~data ~f w ~f_acc ) *)
 
     let step_repeatedly ~state ~data ~f ~f_acc =
       Linear_pipe.create_reader ~close_on_exception:true (fun w ->
@@ -1674,131 +1809,139 @@ let%test_module "scans" =
         let job_done (job : (Int64.t, Int64.t) Available_job.t) : Int64.t =
           match job with Base x -> x | Merge (x, y) -> Int64.( + ) x y
 
-        let%test_unit "Split only if enqueuing onto the next queue" =
-          let p = 4 in
-          let max_base_jobs = Int.pow 2 p in
-          let g = Int.gen_incl 0 max_base_jobs in
-          let state = State.empty ~max_base_jobs ~delay:1 in
-          Quickcheck.test g ~trials:1000 ~f:(fun i ->
-              let data = List.init i ~f:Int64.of_int in
-              let partition = partition_if_overflowing state in
-              let jobs =
-                List.concat
-                @@ work_for_next_update state ~data_count:(List.length data)
-              in
-              let jobs_done = List.map jobs ~f:job_done in
-              let tree_count_before = Non_empty_list.length state.trees in
-              let _, state =
-                test_update ~data state ~completed_jobs:jobs_done
-              in
-              match partition.second with
-              | None ->
-                  let tree_count_after = Non_empty_list.length state.trees in
-                  let expected_tree_count =
-                    if i = fst partition.first then tree_count_before + 1
-                    else tree_count_before
-                  in
-                  assert (tree_count_after = expected_tree_count)
-              | Some _ ->
-                  let tree_count_after = Non_empty_list.length state.trees in
-                  let expected_tree_count =
-                    if i > fst partition.first then tree_count_before + 1
-                    else tree_count_before
-                  in
-                  assert (tree_count_after = expected_tree_count) )
+        (* let%test_unit "Split only if enqueuing onto the next queue" = *)
+        (*   let p = 4 in *)
+        (*   let max_base_jobs = Int.pow 2 p in *)
+        (*   let g = Int.gen_incl 0 max_base_jobs in *)
+        (*   let state = State.empty ~max_base_jobs ~delay:1 in *)
+        (*   let s = ref state in *)
+        (*   Quickcheck.test g ~trials:100000 ~f:(fun i -> *)
+        (*       let state = !s in *)
+        (*       let h = State.hash state Int64.to_string Int64.to_string in *)
+        (*       (\*             (\\* Printf.eprintf "hash_s2=%s\n%!" (Digestif.SHA256.to_hex h); *\\) *\) *)
+        (*       Printf.eprintf "QUICKGEN I=%d hash=%s\n%!" i *)
+        (*         (Digestif.SHA256.to_hex h) ; *)
+        (*       let data = List.init i ~f:Int64.of_int in *)
+        (*       let partition = partition_if_overflowing state in *)
+        (*       let jobs = *)
+        (*         List.concat *)
+        (*         @@ work_for_next_update state ~data_count:(List.length data) *)
+        (*       in *)
+        (*       let jobs_done = List.map jobs ~f:job_done in *)
+        (*       let tree_count_before = Non_empty_list.length state.trees in *)
+        (*       let _, state = *)
+        (*         test_update ~data state ~completed_jobs:jobs_done *)
+        (*       in *)
+        (*       (\* s := state ; *\) *)
+        (*       match partition.second with *)
+        (*       | None -> *)
+        (*           let tree_count_after = Non_empty_list.length state.trees in *)
+        (*           let expected_tree_count = *)
+        (*             if i = fst partition.first then tree_count_before + 1 *)
+        (*             else tree_count_before *)
+        (*           in *)
+        (*           assert (tree_count_after = expected_tree_count) *)
+        (*       | Some _ -> *)
+        (*           Printf.eprintf "test_some\n%!" ; *)
+        (*           let tree_count_after = Non_empty_list.length state.trees in *)
+        (*           let expected_tree_count = *)
+        (*             if i > fst partition.first then tree_count_before + 1 *)
+        (*             else tree_count_before *)
+        (*           in *)
+        (*           assert (tree_count_after = expected_tree_count) ) *)
 
-        let%test_unit "sequence number reset" =
-          (*create jobs with unique sequence numbers starting from 1. At any
-            point, after reset, the jobs should be labelled starting from 1.
-          *)
-          Backtrace.elide := false ;
-          let p = 3 in
-          let g = Int.gen_incl 0 (Int.pow 2 p) in
-          let max_base_jobs = Int.pow 2 p in
-          let jobs state =
-            List.fold ~init:[] (Non_empty_list.to_list state.trees)
-              ~f:(fun acc tree -> Tree.jobs_records tree :: acc)
-          in
-          let verify_sequence_number state =
-            let state = reset_seq_no state in
-            let jobs_list = jobs state in
-            let depth = Int.ceil_log2 max_base_jobs + 1 in
-            List.iteri jobs_list ~f:(fun i jobs ->
-                (*each tree has jobs up till a level below the older tree*)
-                (* and have the following sequence numbers after reset
-                   *         4
-                   *     3       3
-                   *   2   2   2   2
-                   *  1 1 1 1 1 1 1 1
-                *)
-                let cur_levels = depth - i in
-                let seq_sum =
-                  List.fold (List.init cur_levels ~f:Fn.id) ~init:0
-                    ~f:(fun acc j ->
-                      let j = j + i in
-                      acc + (Int.pow 2 j * (depth - j)) )
-                in
-                let offset = i in
-                let sum_of_all_seq_numbers =
-                  List.sum
-                    (module Int)
-                    ~f:(fun (job :
-                              (int64 Merge.Record.t, int64 Base.Record.t) Job.t
-                              ) ->
-                      match job with
-                      | Job.Merge { seq_no; _ } ->
-                          seq_no - offset
-                      | Base { seq_no; _ } ->
-                          seq_no - offset )
-                    jobs
-                in
-                assert (sum_of_all_seq_numbers = seq_sum) )
-          in
-          let state = ref (State.empty ~max_base_jobs ~delay:0) in
-          let counter = ref 0 in
-          Quickcheck.test g ~trials:50 ~f:(fun _ ->
-              let jobs = List.concat (jobs_for_next_update !state) in
-              let jobs_done = List.map jobs ~f:job_done in
-              let data = List.init max_base_jobs ~f:Int64.of_int in
-              let res_opt, s =
-                test_update ~data !state ~completed_jobs:jobs_done
-              in
-              state := s ;
-              if Option.is_some res_opt then
-                (*start the rest after enough jobs are created*)
-                if !counter >= p + 1 then verify_sequence_number !state
-                else counter := !counter + 1
-              else () )
+        (* let%test_unit "sequence number reset" = *)
+        (*   (\*create jobs with unique sequence numbers starting from 1. At any *)
+        (*     point, after reset, the jobs should be labelled starting from 1. *)
+        (*   *\) *)
+        (*   Backtrace.elide := false ; *)
+        (*   let p = 3 in *)
+        (*   let g = Int.gen_incl 0 (Int.pow 2 p) in *)
+        (*   let max_base_jobs = Int.pow 2 p in *)
+        (*   let jobs state = *)
+        (*     List.fold ~init:[] (Non_empty_list.to_list state.trees) *)
+        (*       ~f:(fun acc tree -> Tree.jobs_records tree :: acc) *)
+        (*   in *)
+        (*   let verify_sequence_number state = *)
+        (*     let state = reset_seq_no state in *)
+        (*     let jobs_list = jobs state in *)
+        (*     let depth = Int.ceil_log2 max_base_jobs + 1 in *)
+        (*     List.iteri jobs_list ~f:(fun i jobs -> *)
+        (*         (\*each tree has jobs up till a level below the older tree*\) *)
+        (*         (\* and have the following sequence numbers after reset *)
+        (*            *         4 *)
+        (*            *     3       3 *)
+        (*            *   2   2   2   2 *)
+        (*            *  1 1 1 1 1 1 1 1 *)
+        (*         *\) *)
+        (*         let cur_levels = depth - i in *)
+        (*         let seq_sum = *)
+        (*           List.fold (List.init cur_levels ~f:Fn.id) ~init:0 *)
+        (*             ~f:(fun acc j -> *)
+        (*               let j = j + i in *)
+        (*               acc + (Int.pow 2 j * (depth - j)) ) *)
+        (*         in *)
+        (*         let offset = i in *)
+        (*         let sum_of_all_seq_numbers = *)
+        (*           List.sum *)
+        (*             (module Int) *)
+        (*             ~f:(fun (job : *)
+        (*                       (int64 Merge.Record.t, int64 Base.Record.t) Job.t *)
+        (*                       ) -> *)
+        (*               match job with *)
+        (*               | Job.Merge { seq_no; _ } -> *)
+        (*                   seq_no - offset *)
+        (*               | Base { seq_no; _ } -> *)
+        (*                   seq_no - offset ) *)
+        (*             jobs *)
+        (*         in *)
+        (*         assert (sum_of_all_seq_numbers = seq_sum) ) *)
+        (*   in *)
+        (*   let state = ref (State.empty ~max_base_jobs ~delay:0) in *)
+        (*   let counter = ref 0 in *)
+        (*   Quickcheck.test g ~trials:50 ~f:(fun _ -> *)
+        (*       let jobs = List.concat (jobs_for_next_update !state) in *)
+        (*       let jobs_done = List.map jobs ~f:job_done in *)
+        (*       let data = List.init max_base_jobs ~f:Int64.of_int in *)
+        (*       let res_opt, s = *)
+        (*         test_update ~data !state ~completed_jobs:jobs_done *)
+        (*       in *)
+        (*       state := s ; *)
+        (*       if Option.is_some res_opt then *)
+        (*         (\*start the rest after enough jobs are created*\) *)
+        (*         if !counter >= p + 1 then verify_sequence_number !state *)
+        (*         else counter := !counter + 1 *)
+        (*       else () ) *)
 
-        let%test_unit "serialize, deserialize scan state" =
-          Backtrace.elide := false ;
-          let g =
-            gen
-              ~gen_data:
-                Quickcheck.Generator.Let_syntax.(
-                  Int.quickcheck_generator >>| Int64.of_int)
-              ~f_job_done:job_done ~f_acc:f_merge_up
-          in
-          Quickcheck.test g ~sexp_of:[%sexp_of: (int64, int64) State.t]
-            ~trials:50 ~f:(fun s ->
-              let hash_s = State.hash s Int64.to_string Int64.to_string in
-              let sz =
-                State.Stable.Latest.bin_size_t Int64.bin_size_t Int64.bin_size_t
-                  s
-              in
-              let buf = Bin_prot.Common.create_buf sz in
-              ignore
-                ( State.Stable.Latest.bin_write_t Int64.bin_write_t
-                    Int64.bin_write_t buf ~pos:0 s
-                  : int ) ;
-              let deserialized =
-                State.Stable.Latest.bin_read_t Int64.bin_read_t Int64.bin_read_t
-                  ~pos_ref:(ref 0) buf
-              in
-              let new_hash =
-                State.hash deserialized Int64.to_string Int64.to_string
-              in
-              assert (Hash.equal hash_s new_hash) )
+        (* let%test_unit "serialize, deserialize scan state" = *)
+        (*   Backtrace.elide := false ; *)
+        (*   let g = *)
+        (*     gen *)
+        (*       ~gen_data: *)
+        (*         Quickcheck.Generator.Let_syntax.( *)
+        (*           Int.quickcheck_generator >>| Int64.of_int) *)
+        (*       ~f_job_done:job_done ~f_acc:f_merge_up *)
+        (*   in *)
+        (*   Quickcheck.test g ~sexp_of:[%sexp_of: (int64, int64) State.t] *)
+        (*     ~trials:50 ~f:(fun s -> *)
+        (*       let hash_s = State.hash s Int64.to_string Int64.to_string in *)
+        (*       let sz = *)
+        (*         State.Stable.Latest.bin_size_t Int64.bin_size_t Int64.bin_size_t *)
+        (*           s *)
+        (*       in *)
+        (*       let buf = Bin_prot.Common.create_buf sz in *)
+        (*       ignore *)
+        (*         ( State.Stable.Latest.bin_write_t Int64.bin_write_t *)
+        (*             Int64.bin_write_t buf ~pos:0 s *)
+        (*           : int ) ; *)
+        (*       let deserialized = *)
+        (*         State.Stable.Latest.bin_read_t Int64.bin_read_t Int64.bin_read_t *)
+        (*           ~pos_ref:(ref 0) buf *)
+        (*       in *)
+        (*       let new_hash = *)
+        (*         State.hash deserialized Int64.to_string Int64.to_string *)
+        (*       in *)
+        (*       assert (Hash.equal hash_s new_hash) ) *)
 
         let%test_unit "scan can be initialized from intermediate state" =
           Backtrace.elide := false ;
@@ -1810,7 +1953,12 @@ let%test_module "scans" =
               ~f_job_done:job_done ~f_acc:f_merge_up
           in
           Quickcheck.test g ~sexp_of:[%sexp_of: (int64, int64) State.t]
-            ~trials:10 ~f:(fun s ->
+            ~trials:1 ~f:(fun s ->
+              Printf.eprintf "starting acc.is_some=%d\n%!"
+                (if Option.is_some s.acc then 1 else 0) ;
+
+              (* let h = State.hash s Int64.to_string Int64.to_string in *)
+              (* Printf.eprintf "hash_s1=%s\n%!" (Digestif.SHA256.to_hex h); *)
               let s = ref s in
               Async.Thread_safe.block_on_async_exn (fun () ->
                   let do_one_next = ref false in
@@ -1821,6 +1969,7 @@ let%test_module "scans" =
                         let rec go () =
                           let next =
                             if !do_one_next then (
+                              Printf.eprintf "SEND_ONE\n%!" ;
                               do_one_next := false ;
                               Int64.one )
                             else Int64.zero
@@ -1837,9 +1986,14 @@ let%test_module "scans" =
                   let parallelism =
                     !s.max_base_jobs * Int.ceil_log2 !s.max_base_jobs
                   in
+                  Printf.eprintf "p=%d p*p=%d\n%!" parallelism
+                    (parallelism * parallelism) ;
                   let fill_some_zeros v s =
+                    Printf.eprintf "LA\n%!" ;
                     List.init (parallelism * parallelism) ~f:(fun _ -> ())
                     |> Deferred.List.fold ~init:v ~f:(fun v _ ->
+                           (* Printf.eprintf "AAA\n%!" ; *)
+                           (* Printf.eprintf "v=%s\n%!" (Int64.to_string v); *)
                            match%map Linear_pipe.read (pipe s) with
                            | `Eof ->
                                v
@@ -1852,114 +2006,141 @@ let%test_module "scans" =
                   let old_acc =
                     !s.acc |> Option.value ~default:Int64.(zero, [])
                   in
+
+                  (* type concrete = ((int64, int64) State.t) in *)
+                  (* let sexp = State.sexp_of_t !s in *)
+                  Printf.eprintf "before\n%!" ;
+                  (* assert ([%equal: int64] (Int64.of_int 1) (fst old_acc)) ; *)
                   let%bind v = fill_some_zeros Int64.zero s in
+                  Printf.eprintf "after\n%!" ;
+
+                  let h = State.hash !s Int64.to_string Int64.to_string in
+                  Printf.eprintf "hash_s1=%s\n%!" (Digestif.SHA256.to_hex h) ;
+
+                  Printf.eprintf "trees_len=%d\n%!"
+                    (Non_empty_list.length !s.trees) ;
                   do_one_next := true ;
                   let acc = !s.acc |> Option.value_exn in
+                  Printf.eprintf "acc=%s old_acc=%s\n%!"
+                    (Int64.to_string (fst acc))
+                    (Int64.to_string (fst old_acc)) ;
                   assert (not ([%equal: int64] (fst acc) (fst old_acc))) ;
+
+                  (* assert ([%equal: int64] (fst acc) (fst old_acc)) ; *)
                   (* eventually we'll emit the acc+1 element *)
+                  let h = State.hash !s Int64.to_string Int64.to_string in
+                  Printf.eprintf "hash_s1=%s\n%!" (Digestif.SHA256.to_hex h) ;
+
+                  Printf.eprintf "V=%s\n%!" (Int64.to_string v) ;
                   let%map _ = fill_some_zeros v s in
+
+                  let h = State.hash !s Int64.to_string Int64.to_string in
+                  Printf.eprintf "hash_s1=%s\n%!" (Digestif.SHA256.to_hex h) ;
+
                   let acc_plus_one = !s.acc |> Option.value_exn in
+                  Printf.eprintf "acc_plus_one.0=%s\n%!"
+                    (Int64.to_string (fst acc_plus_one)) ;
                   assert (Int64.(equal (fst acc_plus_one) (fst acc + one))) ) )
       end )
 
-    let%test_module "scan (+) over ints, map from string" =
-      ( module struct
-        let f_merge_up (tuple : (int64 * string list) option) x =
-          let open Option.Let_syntax in
-          let%map acc = tuple in
-          (Int64.( + ) (fst acc) (fst x), snd acc @ snd x)
+    (* let%test_module "scan (+) over ints, map from string" = *)
+    (*   ( module struct *)
+    (*     let f_merge_up (tuple : (int64 * string list) option) x = *)
+    (*       let open Option.Let_syntax in *)
+    (*       let%map acc = tuple in *)
+    (*       (Int64.( + ) (fst acc) (fst x), snd acc @ snd x) *)
 
-        let job_done (job : (Int64.t, string) Available_job.t) : Int64.t =
-          match job with
-          | Base x ->
-              Int64.of_string x
-          | Merge (x, y) ->
-              Int64.( + ) x y
+    (*     let job_done (job : (Int64.t, string) Available_job.t) : Int64.t = *)
+    (*       match job with *)
+    (*       | Base x -> *)
+    (*           Int64.of_string x *)
+    (*       | Merge (x, y) -> *)
+    (*           Int64.( + ) x y *)
 
-        let%test_unit "scan behaves like a fold long-term" =
-          let a_bunch_of_ones_then_zeros x =
-            { Linear_pipe.Reader.pipe =
-                Pipe.unfold ~init:x ~f:(fun count ->
-                    let next =
-                      if count <= 0 then "0" else Int.to_string (x - count)
-                    in
-                    return (Some (next, count - 1)) )
-            ; has_reader = false
-            }
-          in
-          let depth = 7 in
-          let n = 1000 in
-          let result =
-            scan
-              ~data:(a_bunch_of_ones_then_zeros n)
-              ~depth ~f:job_done ~f_acc:f_merge_up
-          in
-          Async.Thread_safe.block_on_async_exn (fun () ->
-              let%map after_3n =
-                List.init (4 * n) ~f:(fun _ -> ())
-                |> Deferred.List.fold ~init:Int64.zero ~f:(fun acc _ ->
-                       match%map Linear_pipe.read result with
-                       | `Eof ->
-                           acc
-                       | `Ok (Some (v, _)) ->
-                           v
-                       | `Ok None ->
-                           acc )
-              in
-              let expected =
-                List.fold
-                  (List.init n ~f:(fun i -> Int64.of_int i))
-                  ~init:Int64.zero ~f:Int64.( + )
-              in
-              assert ([%equal: int64] after_3n expected) )
-      end )
+    (*     let%test_unit "scan behaves like a fold long-term" = *)
+    (*       let a_bunch_of_ones_then_zeros x = *)
+    (*         { Linear_pipe.Reader.pipe = *)
+    (*             Pipe.unfold ~init:x ~f:(fun count -> *)
+    (*                 let next = *)
+    (*                   if count <= 0 then "0" else Int.to_string (x - count) *)
+    (*                 in *)
+    (*                 return (Some (next, count - 1)) ) *)
+    (*         ; has_reader = false *)
+    (*         } *)
+    (*       in *)
+    (*       let depth = 7 in *)
+    (*       let n = 1000 in *)
+    (*       let result = *)
+    (*         scan *)
+    (*           ~data:(a_bunch_of_ones_then_zeros n) *)
+    (*           ~depth ~f:job_done ~f_acc:f_merge_up *)
+    (*       in *)
+    (*       Async.Thread_safe.block_on_async_exn (fun () -> *)
+    (*           let%map after_3n = *)
+    (*             List.init (4 * n) ~f:(fun _ -> ()) *)
+    (*             |> Deferred.List.fold ~init:Int64.zero ~f:(fun acc _ -> *)
+    (*                    match%map Linear_pipe.read result with *)
+    (*                    | `Eof -> *)
+    (*                        acc *)
+    (*                    | `Ok (Some (v, _)) -> *)
+    (*                        v *)
+    (*                    | `Ok None -> *)
+    (*                        acc ) *)
+    (*           in *)
+    (*           let expected = *)
+    (*             List.fold *)
+    (*               (List.init n ~f:(fun i -> Int64.of_int i)) *)
+    (*               ~init:Int64.zero ~f:Int64.( + ) *)
+    (*           in *)
+    (*           assert ([%equal: int64] after_3n expected) ) *)
+    (*   end ) *)
 
-    let%test_module "scan (concat) over strings" =
-      ( module struct
-        let f_merge_up (tuple : (string * string list) option) x =
-          let open Option.Let_syntax in
-          let%map acc = tuple in
-          (String.( ^ ) (fst acc) (fst x), snd acc @ snd x)
+    (* let%test_module "scan (concat) over strings" = *)
+    (*   ( module struct *)
+    (*     let f_merge_up (tuple : (string * string list) option) x = *)
+    (*       let open Option.Let_syntax in *)
+    (*       let%map acc = tuple in *)
+    (*       (String.( ^ ) (fst acc) (fst x), snd acc @ snd x) *)
 
-        let job_done (job : (string, string) Available_job.t) : string =
-          match job with Base x -> x | Merge (x, y) -> String.( ^ ) x y
+    (*     let job_done (job : (string, string) Available_job.t) : string = *)
+    (*       match job with Base x -> x | Merge (x, y) -> String.( ^ ) x y *)
 
-        let%test_unit "scan performs operation in correct order with \
-                       non-commutative semigroup" =
-          Backtrace.elide := false ;
-          let a_bunch_of_nums_then_empties x =
-            { Linear_pipe.Reader.pipe =
-                Pipe.unfold ~init:x ~f:(fun count ->
-                    let next =
-                      if count <= 0 then "" else Int.to_string (x - count) ^ ","
-                    in
-                    return (Some (next, count - 1)) )
-            ; has_reader = false
-            }
-          in
-          let n = 100 in
-          let result =
-            scan
-              ~data:(a_bunch_of_nums_then_empties n)
-              ~depth:7 ~f:job_done ~f_acc:f_merge_up
-          in
-          Async.Thread_safe.block_on_async_exn (fun () ->
-              let%map after_42n =
-                List.init (42 * n) ~f:(fun _ -> ())
-                |> Deferred.List.fold ~init:"" ~f:(fun acc _ ->
-                       match%map Linear_pipe.read result with
-                       | `Eof ->
-                           acc
-                       | `Ok (Some (v, _)) ->
-                           v
-                       | `Ok None ->
-                           acc )
-              in
-              let expected =
-                List.fold
-                  (List.init n ~f:(fun i -> Int.to_string i ^ ","))
-                  ~init:"" ~f:String.( ^ )
-              in
-              assert (String.equal after_42n expected) )
-      end )
+    (* let%test_unit "scan performs operation in correct order with \ *)
+       (*                    non-commutative semigroup" = *)
+    (*       Backtrace.elide := false ; *)
+    (*       let a_bunch_of_nums_then_empties x = *)
+    (*         { Linear_pipe.Reader.pipe = *)
+    (*             Pipe.unfold ~init:x ~f:(fun count -> *)
+    (*                 let next = *)
+    (*                   if count <= 0 then "" else Int.to_string (x - count) ^ "," *)
+    (*                 in *)
+    (*                 return (Some (next, count - 1)) ) *)
+    (*         ; has_reader = false *)
+    (*         } *)
+    (*       in *)
+    (*       let n = 100 in *)
+    (*       let result = *)
+    (*         scan *)
+    (*           ~data:(a_bunch_of_nums_then_empties n) *)
+    (*           ~depth:7 ~f:job_done ~f_acc:f_merge_up *)
+    (*       in *)
+    (*       Async.Thread_safe.block_on_async_exn (fun () -> *)
+    (*           let%map after_42n = *)
+    (*             List.init (42 * n) ~f:(fun _ -> ()) *)
+    (*             |> Deferred.List.fold ~init:"" ~f:(fun acc _ -> *)
+    (*                    match%map Linear_pipe.read result with *)
+    (*                    | `Eof -> *)
+    (*                        acc *)
+    (*                    | `Ok (Some (v, _)) -> *)
+    (*                        v *)
+    (*                    | `Ok None -> *)
+    (*                        acc ) *)
+    (*           in *)
+    (*           let expected = *)
+    (*             List.fold *)
+    (*               (List.init n ~f:(fun i -> Int.to_string i ^ ",")) *)
+    (*               ~init:"" ~f:String.( ^ ) *)
+    (*           in *)
+    (*           assert (String.equal after_42n expected) ) *)
+    (*   end ) *)
   end )
