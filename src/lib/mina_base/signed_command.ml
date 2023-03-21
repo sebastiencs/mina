@@ -394,6 +394,9 @@ module Make_str (_ : Wire_types.Concrete) = struct
   include Codable.Make_base64 (Stable.Latest.With_top_version_tag)
 
   let check_signature ?signature_kind ({ payload; signer; signature } : t) =
+    (* Printf.eprintf !"check_signature payload=%{sexp: Payload.t}\n%!" payload; *)
+    (* Printf.eprintf !"check_signature signer=%{sexp: Public_key.t}\n%!" signer; *)
+    (* Printf.eprintf !"check_signature signature=%{sexp: Signature.t}\n%!" signature; *)
     Signature_lib.Schnorr.Legacy.verify ?signature_kind signature
       (Snark_params.Tick.Inner_curve.of_affine signer)
       (to_input_legacy payload)

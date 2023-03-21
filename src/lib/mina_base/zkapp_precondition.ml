@@ -881,14 +881,26 @@ module Protocol_state = struct
          } :
           t ) =
       let open Random_oracle.Input.Chunked in
-      List.reduce_exn ~f:append
-        [ Hash.(to_input Tc.frozen_ledger_hash hash)
-        ; Numeric.(to_input Tc.amount total_currency)
-        ; Hash.(to_input Tc.epoch_seed seed)
-        ; Hash.(to_input Tc.state_hash start_checkpoint)
-        ; Hash.(to_input Tc.state_hash lock_checkpoint)
-        ; Numeric.(to_input Tc.length epoch_length)
-        ]
+      Printf.eprintf
+        !"start_checkpoint=%{sexp: Field.t Hash.t}\n%!"
+        start_checkpoint ;
+      Printf.eprintf
+        !"lock_checkpoint=%{sexp: Field.t Hash.t}\n%!"
+        lock_checkpoint ;
+      let res =
+        List.reduce_exn ~f:append
+          [ Hash.(to_input Tc.frozen_ledger_hash hash)
+          ; Numeric.(to_input Tc.amount total_currency)
+          ; Hash.(to_input Tc.epoch_seed seed)
+          ; Hash.(to_input Tc.state_hash start_checkpoint)
+          ; Hash.(to_input Tc.state_hash lock_checkpoint)
+          ; Numeric.(to_input Tc.length epoch_length)
+          ]
+      in
+      Printf.eprintf
+        !"inputs=%{sexp: Field.t Random_oracle_input.Chunked.t}\n%!"
+        res ;
+      res
 
     module Checked = struct
       type t =
