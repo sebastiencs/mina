@@ -403,6 +403,9 @@ let%test_module "test functor on in memory databases" =
       let account_from_rust account =
         Account.bin_read_t (Bigstring.of_bytes account) ~pos_ref:(ref 0)
 
+      let account_update_from_rust account =
+        Mina_base.Account_update.Stable.V1.bin_read_t (Bigstring.of_bytes account) ~pos_ref:(ref 0)
+
       let account_id_to_rust account_id =
         let buf =
           Bigstring.create (Account_id.Stable.Latest.bin_size_t account_id)
@@ -438,6 +441,12 @@ let%test_module "test functor on in memory databases" =
 
       let%test "merkle_path" =
         Test.with_instance (fun mdb ->
+
+            Rust.test_random_account_updates (fun account ->
+                let account = account_update_from_rust account in
+                let hash = Mina_base.Account_update.digest account in
+                hash_to_rust (Obj.magic (Obj.repr hash))
+              );
 
             Rust.test_random_accounts (fun account ->
                 let account = account_from_rust account in
