@@ -334,6 +334,33 @@ let validate_proofs ~verifier ~genesis_state_hash tvs =
                ~state:(Header.protocol_state header)
                ~proof:(Header.protocol_state_proof header) ) )
   in
+
+  ignore
+  @@ List.map to_verify ~f:(fun proof ->
+         Core.Printf.eprintf
+           !"blockchain_proof=%{sexp: Blockchain_snark.Blockchain.t}\n%!"
+           proof ;
+
+         let buf =
+           Bigstring.create
+             (Blockchain_snark.Blockchain.Stable.V2.bin_size_t proof)
+         in
+         ignore
+           ( Blockchain_snark.Blockchain.Stable.V2.bin_write_t buf ~pos:0 proof
+             : int ) ;
+         let bytes = Bigstring.to_bytes buf in
+
+         let explode s =
+           List.init (String.length s) ~f:(fun i -> String.get s i)
+         in
+         let s =
+           String.concat ~sep:","
+             (List.map
+                (explode (Bytes.to_string bytes))
+                ~f:(fun b -> string_of_int (Char.to_int b)) )
+         in
+         Core.Printf.eprintf !"blockchain_proof= %s\n%!" s ) ;
+
   match%map.Deferred
     match to_verify with
     | [] ->
