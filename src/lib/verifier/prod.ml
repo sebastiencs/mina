@@ -85,6 +85,79 @@ module Worker_state = struct
                    | `Mismatched_authorization_kind _ ->
                        [] )
                in
+
+               ignore
+               @@ List.map to_verify ~f:(fun (vk, statement, proof) ->
+                      Core.Printf.eprintf
+                        !"zkapp_vk=%{sexp: Side_loaded_verification_key.t}\n%!"
+                        vk ;
+                      Core.Printf.eprintf
+                        !"zkapp_statement=%{sexp: Zkapp_statement.t}\n%!"
+                        statement ;
+                      Core.Printf.eprintf
+                        !"zkapp_vk=%{sexp: Pickles.Side_loaded.Proof.t}\n%!"
+                        proof ;
+
+                      let buf =
+                        Bigstring.create
+                          (Side_loaded_verification_key.Stable.V2.bin_size_t vk)
+                      in
+                      ignore
+                        ( Side_loaded_verification_key.Stable.V2.bin_write_t buf
+                            ~pos:0 vk
+                          : int ) ;
+                      let bytes = Bigstring.to_bytes buf in
+                      let explode s =
+                        List.init (String.length s) ~f:(fun i -> String.get s i)
+                      in
+                      let s =
+                        String.concat ~sep:","
+                          (List.map
+                             (explode (Bytes.to_string bytes))
+                             ~f:(fun b -> string_of_int (Char.to_int b)) )
+                      in
+                      Core.Printf.eprintf !"zkapp_vk=%s\n%!" s ;
+
+                      let buf =
+                        Bigstring.create
+                          (Zkapp_statement.Stable.V2.bin_size_t statement)
+                      in
+                      ignore
+                        ( Zkapp_statement.Stable.V2.bin_write_t buf ~pos:0
+                            statement
+                          : int ) ;
+                      let bytes = Bigstring.to_bytes buf in
+                      let explode s =
+                        List.init (String.length s) ~f:(fun i -> String.get s i)
+                      in
+                      let s =
+                        String.concat ~sep:","
+                          (List.map
+                             (explode (Bytes.to_string bytes))
+                             ~f:(fun b -> string_of_int (Char.to_int b)) )
+                      in
+                      Core.Printf.eprintf !"zkapp_statement=%s\n%!" s ;
+
+                      let buf =
+                        Bigstring.create
+                          (Pickles.Side_loaded.Proof.Stable.V2.bin_size_t proof)
+                      in
+                      ignore
+                        ( Pickles.Side_loaded.Proof.Stable.V2.bin_write_t buf
+                            ~pos:0 proof
+                          : int ) ;
+                      let bytes = Bigstring.to_bytes buf in
+                      let explode s =
+                        List.init (String.length s) ~f:(fun i -> String.get s i)
+                      in
+                      let s =
+                        String.concat ~sep:","
+                          (List.map
+                             (explode (Bytes.to_string bytes))
+                             ~f:(fun b -> string_of_int (Char.to_int b)) )
+                      in
+                      Core.Printf.eprintf !"zkapp_proof=%s\n%!" s ) ;
+
                let%map all_verified =
                  Pickles.Side_loaded.verify ~typ:Zkapp_statement.typ to_verify
                in
