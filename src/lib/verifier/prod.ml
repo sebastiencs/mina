@@ -369,9 +369,9 @@ let create ~logger ~proof_level ~constraint_constants ~pids ~conf_dir :
     @@ Pipe.iter
          (Process.stderr process |> Reader.pipe)
          ~f:(fun stderr ->
-           return
-           @@ [%log error] "Verifier stderr: $stderr"
-                ~metadata:[ ("stderr", `String stderr) ] ) ;
+           return (Core.Printf.eprintf "%s%!" stderr)
+           (* @@ [%log error] "Verifier stderr: $stderr" *)
+           (*      ~metadata:[ ("stderr", `String stderr) ] *) ) ;
     { connection; process; exit_or_signal }
   in
   let%map worker = create_worker () |> Deferred.Or_error.ok_exn in

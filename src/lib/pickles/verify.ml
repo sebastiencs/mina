@@ -45,6 +45,10 @@ let verify_heterogenous (ts : Instance.t list) =
     in
     ((fun (lab, b) -> if not b then r := lab :: !r), result)
   in
+  Printf.eprintf "###############################\n%!" ;
+  Printf.eprintf "## Start verify_heterogenous ##\n%!" ;
+  Printf.eprintf "###############################\n%!" ;
+  Mina_tree.Rust.rust_print_backtrace 0 ;
   let in_circuit_plonks, computed_bp_chals =
     List.map ts
       ~f:(fun
@@ -86,6 +90,13 @@ let verify_heterogenous (ts : Instance.t list) =
         let zeta = sc plonk0.zeta in
         let alpha = sc plonk0.alpha in
         let step_domain = Branch_data.domain branch_data in
+        Printf.eprintf !"branch_data=%{sexp: Branch_data.t}\n%!" branch_data ;
+        Printf.eprintf
+          !"log2_size=%{sexp: int}\n%!"
+          (Domain.log2_size step_domain) ;
+        Printf.eprintf
+          !"Backend.Tick.Rounds.n=%{sexp: int}\n%!"
+          (Nat.to_int Backend.Tick.Rounds.n) ;
         check
           ( lazy "domain size is small enough"
           , Domain.log2_size step_domain <= Nat.to_int Backend.Tick.Rounds.n ) ;
@@ -271,6 +282,15 @@ let verify_heterogenous (ts : Instance.t list) =
             Wrap_verifier.all_possible_domains ()
           in
           let actual_wrap_domain = key.index.domain.log_size_of_group in
+
+          Printf.eprintf
+            !"actual_wrap_domain=%{sexp: int}\n%!"
+            actual_wrap_domain ;
+          Printf.eprintf !"least_wrap_domain=%{sexp: int}\n%!" least_wrap_domain ;
+          Printf.eprintf
+            !"greatest_wrap_domain=%{sexp: int}\n%!"
+            greatest_wrap_domain ;
+
           check
             ( lazy
                 (sprintf !"wrap_domain: %i > %i" actual_wrap_domain

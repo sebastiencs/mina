@@ -138,6 +138,36 @@ module T = struct
         "Invalid transaction snark for statement $statement: $error" ;
       Deferred.return (Or_error.error_string err_str)
     in
+    ignore
+    @@ List.map proofs ~f:(fun (proof, _, _) ->
+           Core.Printf.eprintf
+             !"transaction_proof=%{sexp: Ledger_proof.t}\n%!"
+             proof ;
+
+           let buf =
+             Bigstring.create (Transaction_snark.Stable.V2.bin_size_t proof)
+           in
+           ignore
+             (Transaction_snark.Stable.V2.bin_write_t buf ~pos:0 proof : int) ;
+           let bytes = Bigstring.to_bytes buf in
+
+           let explode s =
+             List.init (String.length s) ~f:(fun i -> String.get s i)
+           in
+           let s =
+             String.concat ~sep:","
+               (List.map
+                  (explode (Bytes.to_string bytes))
+                  ~f:(fun b -> string_of_int (Char.to_int b)) )
+           in
+           Core.Printf.eprintf !"transaction_proof= %s\n%!" s
+           (* /// *)
+           (* /// let explode s = List.init (String.length s) ~f:(fun i -> String.get s i) in *)
+           (* /// *)
+           (* /// let s = (String.concat ~sep:"," (List.map (explode (Bytes.to_string bytes)) ~f:(fun b -> string_of_int (Char.to_int b)))) in *)
+           (* /// *)
+           (* /// Core.Printf.eprintf !"dummy proof= %{sexp: Proof.t}\n%!" dummy; *)
+           (* /// Core.Printf.eprintf !"dummy proof= %s\n%!" s; *) ) ;
     if
       List.exists proofs ~f:(fun (proof, statement, _msg) ->
           not
