@@ -4176,6 +4176,62 @@ let%test_module "staged ledger tests" =
                   | Error _ ->
                       assert false ) ) )
 
+    type staged_response =
+      ( Sl.Scan_state.Stable.V2.t
+        * Ledger_hash.Stable.V1.t
+        * Pending_coinbase.Stable.V2.t
+        * Mina_state.Protocol_state.Value.Stable.V2.t list )
+        option [@@deriving bin_io]
+
+    exception DatabaseException of string
+
+    let unwrap (result : 'a option) =
+      match result with Some value -> value | None -> raise (DatabaseException "seb")
+
+    let%test_unit "reconstruct staged-ledger" =
+      let read_file_into_string filename =
+        Stdio.In_channel.read_all filename
+      in
+
+      let snarked_ledger_file = read_file_into_string "/home/sebastien/travaux/ledger/target/snarked_ledger" in
+      let staged_ledger_file = read_file_into_string "/home/sebastien/travaux/ledger/target/staged_ledger" in
+
+      let snarked_ledger = Ledger.create ~depth:35 () in
+
+      let accounts = List.bin_read_t Account.Stable.V2.bin_read_t (Bigstring.of_string snarked_ledger_file) ~pos_ref:(ref 0) in
+      Core.Printf.eprintf "naccounts=%d\n%!" (List.length accounts);
+
+      List.iter ~f:(fun account ->
+          let account_id = Account.identifier account in  (* Assuming you have an id function *)
+          match Ledger.get_or_create_account snarked_ledger account_id account with
+          | Ok _ -> ()
+          | _ -> failwith "Error message"  (* or other error handling *)
+        ) accounts;
+
+      let staged : staged_response = bin_read_staged_response (Bigstring.of_string staged_ledger_file) ~pos_ref:(ref 0) in
+
+      let (scan_state, expected_merkle_root, pending_coinbases, states) = (staged |> unwrap) in
+
+      let states = List.map states ~f:(fun s -> (Mina_state.Protocol_state.hashes s).state_hash, s) in
+
+      let get_state hash =
+        Ok (snd (List.find_exn states ~f:(fun (s, _) -> (Frozen_ledger_hash.equal s hash))))
+      in
+
+      let now = Unix.gettimeofday () in
+
+      let staged =
+        Async.Thread_safe.block_on_async_exn (fun () ->
+            (* Your function call here, for example: *)
+            Sl.of_scan_state_pending_coinbases_and_snarked_ledger ~logger ~constraint_constants ~verifier ~scan_state ~snarked_ledger ~snarked_local_state:(Mina_state.Local_state.empty ()) ~expected_merkle_root ~pending_coinbases ~get_state
+          ) in
+
+      let elapsed = Unix.gettimeofday () -. now in
+      Core.Printf.printf "OK elapsed=%f sec\n%!" elapsed;
+
+      let hash = Sl.hash (staged |> Or_error.ok_exn) in
+      Core.Printf.eprintf !"staged_ledger_hash=%{sexp: Staged_ledger_hash.t}\n%!" hash;
+
     let%test_unit "Mismatched verification keys in zkApp accounts and \
                    transactions" =
       let open Transaction_snark.For_tests in
