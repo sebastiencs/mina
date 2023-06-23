@@ -1,3 +1,5 @@
+[@@@ocaml.warning "-32"]
+
 open Core
 open Test_stubs
 
@@ -5,7 +7,6 @@ let%test_module "test functor on in memory databases" =
   ( module struct
     module Intf = Merkle_ledger.Intf
     module Database = Merkle_ledger.Database
-
     module Rust = Mina_tree.Rust
 
     module type DB =
@@ -404,7 +405,9 @@ let%test_module "test functor on in memory databases" =
         Account.bin_read_t (Bigstring.of_bytes account) ~pos_ref:(ref 0)
 
       let account_update_from_rust account =
-        Mina_base.Account_update.Stable.V1.bin_read_t (Bigstring.of_bytes account) ~pos_ref:(ref 0)
+        Mina_base.Account_update.Stable.V1.bin_read_t
+          (Bigstring.of_bytes account)
+          ~pos_ref:(ref 0)
 
       let account_id_to_rust account_id =
         let buf =
@@ -412,6 +415,11 @@ let%test_module "test functor on in memory databases" =
         in
         ignore (Account_id.Stable.Latest.bin_write_t buf ~pos:0 account_id : int) ;
         Bigstring.to_bytes buf
+
+      let account_id_from_rust account_id =
+        Account_id.Stable.Latest.bin_read_t
+          (Bigstring.of_bytes account_id)
+          ~pos_ref:(ref 0)
 
       let account_to_rust account =
         let buf = Bigstring.create (Account.bin_size_t account) in
@@ -426,8 +434,7 @@ let%test_module "test functor on in memory databases" =
       let hash_from_rust hash =
         hash |> Bigstring.of_bytes |> Hash.bin_read_t ~pos_ref:(ref 0)
 
-      let validate_rust_account bytes =
-        ignore @@ account_from_rust bytes
+      let validate_rust_account bytes = ignore @@ account_from_rust bytes
 
       let get_random_account () =
         let account = Rust.get_random_account validate_rust_account in
@@ -442,18 +449,31 @@ let%test_module "test functor on in memory databases" =
       let%test "merkle_path" =
         Test.with_instance (fun mdb ->
 
+            (* Printf.eprintf "START\n%!"; *)
+            (* let account = get_random_account () in *)
+            (* let id = (Account.identifier account) in *)
+            (* Printf.eprintf !"random_account=%{sexp: Account_id.t}\n\n%!" id; *)
+            (* let account_states = Account_id.Table.create () in *)
+            (* Account_id.Table.update account_states (Account.identifier account) *)
+            (*   ~f:(Option.value ~default:1) ; *)
+            (* Printf.eprintf "END\n%!"; *)
+
+            Rust.test_random_account_ids (fun id ->
+                let id = account_id_from_rust id in
+                let hash = Account_id.hash id in
+                hash
+              ) ;
+
             Rust.test_random_account_updates (fun account ->
                 let account = account_update_from_rust account in
                 let hash = Mina_base.Account_update.digest account in
-                hash_to_rust (Obj.magic (Obj.repr hash))
-              );
+                hash_to_rust (Obj.magic (Obj.repr hash)) ) ;
 
             Rust.test_random_accounts (fun account ->
                 let account = account_from_rust account in
                 let hash = Hash.hash_account account in
                 hash_to_rust hash
-                (* account *)
-              );
+                (* account *) ) ;
 
             (* let addr = MT.Addr.of_byte_string "000" in *)
             (* Printf.printf "ADDR=%s\n%!" (MT.Addr.to_string addr) ; *)
@@ -477,7 +497,6 @@ let%test_module "test functor on in memory databases" =
             (* let root = MT.merkle_root mdb in *)
             (* Printf.eprintf "root_hash_with_empty:%s\n%!" *)
             (*   (Snark_params.Tick.Field.to_string root) ; *)
-
             let depth = MT.depth mdb in
             let rust_db = Rust.database_create depth None in
 
@@ -499,18 +518,17 @@ let%test_module "test functor on in memory databases" =
             Printf.eprintf "account4:%s\n%!"
               (Snark_params.Tick.Field.to_string hash4) ;
 
-            ignore @@ create_new_account_exn mdb account1;
-            ignore @@ create_new_account_exn mdb account2;
-            ignore @@ create_new_account_exn mdb account3;
-            ignore @@ create_new_account_exn mdb account4;
-            ignore @@ rust_get_or_create_account rust_db account1;
-            ignore @@ rust_get_or_create_account rust_db account2;
-            ignore @@ rust_get_or_create_account rust_db account3;
-            ignore @@ rust_get_or_create_account rust_db account4;
+            ignore @@ create_new_account_exn mdb account1 ;
+            ignore @@ create_new_account_exn mdb account2 ;
+            ignore @@ create_new_account_exn mdb account3 ;
+            ignore @@ create_new_account_exn mdb account4 ;
+            ignore @@ rust_get_or_create_account rust_db account1 ;
+            ignore @@ rust_get_or_create_account rust_db account2 ;
+            ignore @@ rust_get_or_create_account rust_db account3 ;
+            ignore @@ rust_get_or_create_account rust_db account4 ;
 
-            let rust_path = Rust.database_merkle_path_at_index rust_db 5 in
-
-            let ocaml_path = MT.merkle_path_at_index_exn mdb 5 in
+            let rust_path = Rust.database_merkle_path_at_index rust_db 1 in
+            let ocaml_path = MT.merkle_path_at_index_exn mdb 1 in
 
             let ocaml_path =
               List.map ocaml_path ~f:(fun p ->
@@ -527,9 +545,11 @@ let%test_module "test functor on in memory databases" =
               List.map rust_path ~f:(fun p ->
                   match p with
                   | `Left h ->
-                      "Left:" ^ Snark_params.Tick.Field.to_string (hash_from_rust h)
+                      "Left:"
+                      ^ Snark_params.Tick.Field.to_string (hash_from_rust h)
                   | `Right h ->
-                      "Right:" ^ Snark_params.Tick.Field.to_string (hash_from_rust h ))
+                      "Right:"
+                      ^ Snark_params.Tick.Field.to_string (hash_from_rust h) )
             in
             let rust_path = String.concat ~sep:",\n" rust_path in
             Printf.eprintf "\nRUST_PATH=%s\n%!" rust_path ;
