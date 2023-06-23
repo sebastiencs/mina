@@ -449,6 +449,20 @@ let%test_module "test functor on in memory databases" =
       let%test "merkle_path" =
         Test.with_instance (fun mdb ->
 
+            (* Test hashtable ordering *)
+            Rust.test_random_account_id_order (fun ids ->
+                let account_states = Account_id.Table.create () in
+                let ids = List.map ids ~f:account_id_from_rust in
+
+                List.iter ids ~f:(fun id ->
+                    Account_id.Table.update account_states id ~f:(Option.value ~default:1) ;
+                  );
+
+                let ids = Account_id.Table.to_alist account_states in
+                let ids = List.map ids ~f:(fun (a, _b) -> a) in
+                List.map ids ~f:account_id_to_rust
+              ) ;
+
             (* Printf.eprintf "START\n%!"; *)
             (* let account = get_random_account () in *)
             (* let id = (Account.identifier account) in *)
