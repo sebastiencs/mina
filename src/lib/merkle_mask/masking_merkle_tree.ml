@@ -659,7 +659,7 @@ module Make (Inputs : Inputs_intf.S) = struct
     let accounts t =
       Rust.mask_get_list t
       |> List.map ~f:account_id_from_rust
-      |> Account_id.Set.of_list
+      |> Account_id.Set.of_list |> Async_kernel.Deferred.return
 
     (* let accounts t = *)
     (*   assert_is_attached t ; *)
@@ -869,9 +869,10 @@ module Make (Inputs : Inputs_intf.S) = struct
     (*   let addr = Addr.of_int_exn ~ledger_depth:t.depth index in *)
     (*   set t (Location.Account addr) account *)
 
-    let to_list t = Rust.mask_get_list t |> List.map ~f:account_from_rust
+    let to_list_sequential t =
+      Rust.mask_get_list t |> List.map ~f:account_from_rust
 
-    let to_list_sequential t = to_list t
+    let to_list t = to_list_sequential t |> Async_kernel.Deferred.return
 
     (* let to_list t = *)
     (*   assert_is_attached t ; *)

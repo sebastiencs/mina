@@ -1,4 +1,5 @@
 open Core
+open Async_kernel
 
 module type Inputs_intf = sig
   include Base_inputs_intf.S
@@ -279,14 +280,17 @@ module Make (Inputs : Inputs_intf) :
   (*   List.map locations_accounts_bin ~f:(fun (_location_bin, account_bin) -> *)
   (*       account_bin_read account_bin ~pos_ref:(ref 0) ) *)
 
-  let to_list mdb = Rust.database_get_list mdb |> List.map ~f:account_from_rust
+  let to_list_sequential mdb =
+    Rust.database_get_list mdb |> List.map ~f:account_from_rust
+
+  let to_list mdb = to_list_sequential mdb |> Deferred.return
 
   (* account_list_bin mdb Account.bin_read_t *)
 
   let accounts mdb =
     Rust.database_get_list mdb
     |> List.map ~f:account_id_from_rust
-    |> Account_id.Set.of_list
+    |> Account_id.Set.of_list |> Deferred.return
 
   (* to_list mdb |> List.map ~f:Account.identifier |> Account_id.Set.of_list *)
 
@@ -779,25 +783,27 @@ module Make (Inputs : Inputs_intf) :
   (* let addr = Addr.of_int_exn ~ledger_depth:mdb.depth index in *)
   (* set mdb (Location.Account addr) account *)
 
-  let num_accounts t =
-    match Account_location.last_location_address t with
-    | None ->
-        0
-    | Some addr ->
-        Addr.to_int addr + 1
+  let num_accounts t = Rust.database_num_accounts t
 
-  let to_list mdb =
-    let num_accounts = num_accounts mdb in
-    Async.Deferred.List.init ~how:`Parallel num_accounts ~f:(fun i ->
-        Async.Deferred.return @@ get_at_index_exn mdb i )
+  (* let num_accounts t = *)
+  (*   match Account_location.last_location_address t with *)
+  (*   | None -> *)
+  (*       0 *)
+  (*   | Some addr -> *)
+  (*       Addr.to_int addr + 1 *)
 
-  let to_list_sequential mdb =
-    let num_accounts = num_accounts mdb in
-    List.init num_accounts ~f:(fun i -> get_at_index_exn mdb i)
+  (* let to_list mdb = *)
+  (*   let num_accounts = num_accounts mdb in *)
+  (*   Async.Deferred.List.init ~how:`Parallel num_accounts ~f:(fun i -> *)
+  (*       Async.Deferred.return @@ get_at_index_exn mdb i ) *)
 
-  let accounts mdb =
-    let%map.Async.Deferred accts = to_list mdb in
-    List.map accts ~f:Account.identifier |> Account_id.Set.of_list
+  (* let to_list_sequential mdb = *)
+  (*   let num_accounts = num_accounts mdb in *)
+  (*   List.init num_accounts ~f:(fun i -> get_at_index_exn mdb i) *)
+
+  (* let accounts mdb = *)
+  (*   let%map.Async.Deferred accts = to_list mdb in *)
+  (*   List.map accts ~f:Account.identifier |> Account_id.Set.of_list *)
 
   let get_or_create_account mdb account_id account =
     (* Printf.eprintf "MY_LOG.MERKLE_LEDGER.DATABASE.GET_OR_CREATE_ACCOUNT\n%!" ; *)
@@ -823,8 +829,6 @@ module Make (Inputs : Inputs_intf) :
   (*     Error (Error.create "get_or_create_account" err Db_error.sexp_of_t) *)
   (* | Ok location -> *)
   (*     Ok (`Existed, location) *)
-
-  let num_accounts t = Rust.database_num_accounts t
 
   (* match Account_location.last_location_address t with *)
   (* | None -> *)

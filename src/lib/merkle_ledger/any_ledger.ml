@@ -14,6 +14,7 @@
  * *)
 
 open Core_kernel
+open Async_kernel
 
 module type S = sig
   type key
@@ -374,18 +375,17 @@ module Make_base (Inputs : Inputs_intf) :
 
     (* let make_space_for (T ((module Base), t)) = Base.make_space_for t *)
 
-                                                (* let foldi (T ((module Base), t)) =
-     *   Printf.eprintf "MY_LOG.ANY.FOLDI\n%!" ;
-     *   Base.foldi t *)
-
     external mask_get_list : 'a -> bytes list = "rust_mask_get_list"
 
     let to_list m =
       Printf.eprintf "MY_LOG.ANY.TO_LIST\n%!" ;
       print_backtrace 0 ;
-      mask_get_list m |> List.map ~f:account_from_rust
+      mask_get_list m |> List.map ~f:account_from_rust |> Deferred.return
 
-    let to_list_sequential m = to_list m
+    let to_list_sequential m =
+      Printf.eprintf "MY_LOG.ANY.TO_LIST_SEQ\n%!" ;
+      print_backtrace 0 ;
+      mask_get_list m |> List.map ~f:account_from_rust
 
     (* let to_list (T ((module Base), t)) =
      *   Printf.eprintf "MY_LOG.ANY.TO_LIST\n%!" ;

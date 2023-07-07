@@ -1,5 +1,9 @@
 [@@@ocaml.warning "-32"]
 
+[@@@ocaml.warning "-27"]
+
+[@@@ocaml.warning "-26"]
+
 [%%import "/src/config.mlh"]
 
 (* Only show stdout for failed inline tests. *)
@@ -2233,7 +2237,6 @@ let%test_module "staged ledger tests" =
       (* Core.Printf.eprintf !"vk=%{sexp: (Side_loaded_verification_key.t, Frozen_ledger_hash.t) With_hash.t}\n%!" vk; *)
       (* Core.Printf.eprintf !"vk_binprot=[%s]\n%!" s; *)
 
-
       (* let dummy = Proof.transaction_dummy in *)
 
       (* let buf = Bigstring.create (Proof.Stable.V2.bin_size_t dummy) in *)
@@ -2246,7 +2249,6 @@ let%test_module "staged ledger tests" =
 
       (* Core.Printf.eprintf !"dummy proof= %{sexp: Proof.t}\n%!" dummy; *)
       (* Core.Printf.eprintf !"dummy proof= %s\n%!" s; *)
-
       let state =
         let consensus_constants =
           let genesis_constants = Genesis_constants.for_unit_tests in
@@ -2263,6 +2265,7 @@ let%test_module "staged ledger tests" =
         in
         compile_time_genesis.data
       in
+
       (* Core.Printf.eprintf *)
       (*   !"PROTOCOL_STATE=%{sexp: Mina_state.Protocol_state.value}\n%!" state ; *)
       (* Core.Printf.eprintf *)
@@ -2275,7 +2278,6 @@ let%test_module "staged ledger tests" =
       (* let s = (String.concat ~sep:"," (List.map (explode (Bytes.to_string bytes)) ~f:(fun b -> string_of_int (Char.to_int b)))) in *)
 
       (* Core.Printf.eprintf !"state_binprot=[%s]\n%!" s; *)
-
       let state_with_global_slot =
         match global_slot with
         | None ->
@@ -4271,44 +4273,76 @@ let%test_module "staged ledger tests" =
 
     type staged_response =
       ( Sl.Scan_state.Stable.V2.t
-        * Ledger_hash.Stable.V1.t
-        * Pending_coinbase.Stable.V2.t
-        * Mina_state.Protocol_state.Value.Stable.V2.t list )
-        option [@@deriving bin_io]
+      * Ledger_hash.Stable.V1.t
+      * Pending_coinbase.Stable.V2.t
+      * Mina_state.Protocol_state.Value.Stable.V2.t list )
+      option
+    [@@deriving bin_io]
 
     exception DatabaseException of string
 
     let unwrap (result : 'a option) =
-      match result with Some value -> value | None -> raise (DatabaseException "seb")
+      match result with
+      | Some value ->
+          value
+      | None ->
+          raise (DatabaseException "seb")
 
     let%test_unit "reconstruct staged-ledger" =
-      let read_file_into_string filename =
-        Stdio.In_channel.read_all filename
-      in
+      let read_file_into_string filename = Stdio.In_channel.read_all filename in
 
-      let snarked_ledger_file = read_file_into_string "/home/sebastien/travaux/ledger/target/snarked_ledger" in
-      let staged_ledger_file = read_file_into_string "/home/sebastien/travaux/ledger/target/staged_ledger" in
+      let snarked_ledger_file =
+        read_file_into_string
+          "/home/sebastien/travaux/ledger/target/snarked_ledger"
+      in
+      let staged_ledger_file =
+        read_file_into_string
+          "/home/sebastien/travaux/ledger/target/staged_ledger"
+      in
 
       let snarked_ledger = Ledger.create ~depth:35 () in
 
-      let accounts = List.bin_read_t Account.Stable.V2.bin_read_t (Bigstring.of_string snarked_ledger_file) ~pos_ref:(ref 0) in
-      Core.Printf.eprintf "naccounts=%d\n%!" (List.length accounts);
+      let accounts =
+        List.bin_read_t Account.Stable.V2.bin_read_t
+          (Bigstring.of_string snarked_ledger_file)
+          ~pos_ref:(ref 0)
+      in
+      Core.Printf.eprintf "naccounts=%d\n%!" (List.length accounts) ;
 
-      List.iter ~f:(fun account ->
-          let account_id = Account.identifier account in  (* Assuming you have an id function *)
-          match Ledger.get_or_create_account snarked_ledger account_id account with
-          | Ok _ -> ()
-          | _ -> failwith "Error message"  (* or other error handling *)
-        ) accounts;
+      List.iter
+        ~f:(fun account ->
+          let account_id = Account.identifier account in
+          (* Assuming you have an id function *)
+          match
+            Ledger.get_or_create_account snarked_ledger account_id account
+          with
+          | Ok _ ->
+              ()
+          | _ ->
+              failwith "Error message"
+          (* or other error handling *) )
+        accounts ;
 
-      let staged : staged_response = bin_read_staged_response (Bigstring.of_string staged_ledger_file) ~pos_ref:(ref 0) in
+      let staged : staged_response =
+        bin_read_staged_response
+          (Bigstring.of_string staged_ledger_file)
+          ~pos_ref:(ref 0)
+      in
 
-      let (scan_state, expected_merkle_root, pending_coinbases, states) = (staged |> unwrap) in
+      let scan_state, expected_merkle_root, pending_coinbases, states =
+        staged |> unwrap
+      in
 
-      let states = List.map states ~f:(fun s -> (Mina_state.Protocol_state.hashes s).state_hash, s) in
+      let states =
+        List.map states ~f:(fun s ->
+            ((Mina_state.Protocol_state.hashes s).state_hash, s) )
+      in
 
       let get_state hash =
-        Ok (snd (List.find_exn states ~f:(fun (s, _) -> (Frozen_ledger_hash.equal s hash))))
+        Ok
+          (snd
+             (List.find_exn states ~f:(fun (s, _) ->
+                  Frozen_ledger_hash.equal s hash ) ) )
       in
 
       let now = Unix.gettimeofday () in
@@ -4316,14 +4350,21 @@ let%test_module "staged ledger tests" =
       let staged =
         Async.Thread_safe.block_on_async_exn (fun () ->
             (* Your function call here, for example: *)
-            Sl.of_scan_state_pending_coinbases_and_snarked_ledger ~logger ~constraint_constants ~verifier ~scan_state ~snarked_ledger ~snarked_local_state:(Mina_state.Local_state.empty ()) ~expected_merkle_root ~pending_coinbases ~get_state
-          ) in
+            Sl.of_scan_state_pending_coinbases_and_snarked_ledger ~logger
+              ~constraint_constants ~verifier ~scan_state ~snarked_ledger
+              ~snarked_local_state:(Mina_state.Local_state.empty ())
+              ~expected_merkle_root ~pending_coinbases ~get_state )
+      in
 
       let elapsed = Unix.gettimeofday () -. now in
-      Core.Printf.printf "OK elapsed=%f sec\n%!" elapsed;
+      Core.Printf.printf "OK elapsed=%f sec\n%!" elapsed ;
 
       let hash = Sl.hash (staged |> Or_error.ok_exn) in
-      Core.Printf.eprintf !"staged_ledger_hash=%{sexp: Staged_ledger_hash.t}\n%!" hash;
+      Core.Printf.eprintf
+        !"staged_ledger_hash=%{sexp: Staged_ledger_hash.t}\n%!"
+        hash ;
+
+      ()
 
     let%test_unit "Mismatched verification keys in zkApp accounts and \
                    transactions" =
